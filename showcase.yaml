@@ -1,6 +1,8 @@
 type: "runtime"
 
-startup: "./target/release/bot-sslime"
+entrypoint: "./target/release/bot-sslime"
+
+http_proxy: 8080
 
 use_mariadb: true
 
