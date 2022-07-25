@@ -1,6 +1,6 @@
 type: "runtime"
 
-entrypoint: "./target/release/bot-sslime"
+entrypoint: "./target/x86_64-unknown-linux-musl/release/rust-musl-builder-gh-actions-public"
 
 http_proxy: 8080
 
