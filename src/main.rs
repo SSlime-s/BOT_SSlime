@@ -1,23 +1,34 @@
 mod api;
+mod db;
 mod events;
+mod messages;
 
-use std::{env, sync::Mutex, thread};
+use std::{env, sync::Mutex};
 
+use chrono::{DateTime, Local, NaiveDateTime};
 use dotenv::dotenv;
 use events::Events;
 use lindera::tokenizer::Tokenizer;
 use markov::Chain;
 use once_cell::sync::Lazy;
-use rocket::futures::{StreamExt, SinkExt, future};
+use regex::Regex;
+use rocket::futures::{future, SinkExt, StreamExt};
+use sqlx::MySqlPool;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{handshake::client::generate_key, protocol::Message},
 };
 
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
+
+use crate::{
+    db::{connect_db, get_markov_cache, update_markov_cache, get_messages},
+    messages::fetch_messages,
+};
 
 pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Chain::of_order(3)));
 
+/// 収集するユーザーの UUID
 pub const TARGET_USER_ID: &str = "81bbc211-65aa-4a45-8c56-e0b78d25f9e5";
 
 pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
@@ -25,29 +36,62 @@ pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
     env::var("BOT_ACCESS_TOKEN").expect("BOT_ACCESS_TOKEN is not set")
 });
 
+/// この正規表現に一致するメッセージは、markov chain に反映されない
+pub static BLOCK_MESSAGE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^:awoo:$").unwrap());
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     env_logger::init();
 
+    let pool = connect_db().await?;
+    debug!("db connected");
+
     let ws_url = "wss://q.trap.jp/api/v3/bots/ws";
     // let ws_url = "ws://localhost:3000";
 
-    match Chain::load(std::path::Path::new("tmp-sslime-markov")) {
-        Ok(chain) => {
-            *MARKOV_CHAIN.lock().unwrap() = chain;
+    info!("loading markov chain cache...");
+    match load_chain(&pool).await {
+        Ok(res) => match res {
+            Some(last_updated) => {
+                if last_updated < Local::now().naive_local() - chrono::Duration::hours(24) {
+                    debug!("markov chain is too old, updating...");
+                    let messages =
+                        fetch_messages(&pool, None, Some(naive_to_local(last_updated))).await?;
+                    feed_messages(
+                        &messages
+                            .iter()
+                            .map(|m| m.content.clone())
+                            .collect::<Vec<String>>(),
+                    );
+                }
+            }
+            None => {
+                debug!("no cache found");
+                // let messages = fetch_messages::<Local>(&pool, None, None).await?;
+                let messages = get_messages(&pool).await?;
+                feed_messages(
+                    &messages
+                        .iter()
+                        .map(|m| m.content.clone())
+                        .collect::<Vec<String>>(),
+                );
+            }
+        },
+        Err(e) => {
+            error!("failed to load markov chain: {}", e);
+            return Err(e);
         }
-        Err(_) => feed_from_api(10000).await,
-    }
+    };
+    info!("markov chain loaded successfully !");
 
-    MARKOV_CHAIN
-        .lock()
-        .unwrap()
-        .save("tmp-sslime-markov")
-        .unwrap();
+    info!("saving markov chain cache...");
+    save_chain(&pool).await?;
+    info!("markov chain saved successfully !");
 
     let request = request_with_authorization(ws_url, BOT_ACCESS_TOKEN.as_str())?;
 
+    info!("connecting to {}...", ws_url);
     let (ws_stream, _) = connect_async(request).await.unwrap();
     info!("Connected to {}", ws_url);
 
@@ -56,7 +100,6 @@ async fn main() -> anyhow::Result<()> {
     let (write, read) = ws_stream.split();
 
     let write_loop = rx.map(Ok).forward(write);
-
 
     let read_loop = {
         read.for_each(|message| async {
@@ -100,43 +143,20 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn feed_message(message: &str) {
+fn feed_messages(messages: &[String]) {
     let tokenizer = Tokenizer::new().unwrap();
-    let tokens = tokenizer.tokenize_str(message).unwrap();
-    let token = tokens.join(" ");
-    MARKOV_CHAIN.lock().unwrap().feed_str(&token);
+    for message in messages {
+        if BLOCK_MESSAGE_REGEX.is_match(message) {
+            continue;
+        }
+        let tokens = tokenizer.tokenize_str(message).unwrap();
+        let token = tokens.join(" ");
+        MARKOV_CHAIN.lock().unwrap().feed_str(&token);
+    }
 }
 
 fn generate_message() -> String {
     MARKOV_CHAIN.lock().unwrap().generate().join("")
-}
-
-async fn feed_from_api(limit: usize) {
-    let mut bar = progress::Bar::new();
-    bar.set_job_title("Fetching messages");
-
-    let mut messages = Vec::new();
-    let r = api::get_messages(0).await;
-    let (total_hit, contents) = r.unwrap();
-    messages.extend(contents);
-    let limit = limit.min(total_hit);
-    let mut now = messages.len();
-    while now < limit {
-        let r = api::get_messages(now).await;
-        messages.extend(r.unwrap().1);
-        now = messages.len();
-        bar.reach_percent((now * 100 / limit) as i32);
-        thread::sleep(std::time::Duration::from_micros(500));
-    }
-    bar.jobs_done();
-
-    let mut bar = progress::Bar::new();
-    bar.set_job_title("Feeding messages");
-    for (i, message) in messages.iter().enumerate() {
-        feed_message(message);
-        bar.reach_percent((i * 100 / messages.len()) as i32);
-    }
-    bar.jobs_done();
 }
 
 fn request_with_authorization(url: &str, token: &str) -> anyhow::Result<http::Request<()>> {
@@ -153,4 +173,39 @@ fn request_with_authorization(url: &str, token: &str) -> anyhow::Result<http::Re
         .header("Authorization", format!("Bearer {}", token))
         .body(())?;
     Ok(req)
+}
+
+async fn save_chain(pool: &MySqlPool) -> anyhow::Result<()> {
+    let content;
+    {
+        debug!("saving markov chain cache...");
+        let chain = MARKOV_CHAIN.lock().unwrap();
+        debug!("get lock");
+        content = serde_yaml::to_string(&*chain)?;
+        debug!("markov chain cache created");
+    }
+
+    debug!("updating markov chain cache...");
+    update_markov_cache(pool, &content).await?;
+    debug!("markov chain cache updated");
+
+    Ok(())
+}
+
+async fn load_chain(pool: &MySqlPool) -> anyhow::Result<Option<NaiveDateTime>> {
+    let content = get_markov_cache(pool).await?;
+
+    let content = match content {
+        Some(content) => content,
+        None => return Ok(None),
+    };
+
+    let chain: Chain<String> = serde_yaml::from_str(&content.cache)?;
+    *MARKOV_CHAIN.lock().unwrap() = chain;
+
+    Ok(Some(content.last_update))
+}
+
+fn naive_to_local(naive: NaiveDateTime) -> DateTime<Local> {
+    DateTime::<Local>::from_utc(naive, *Local::now().offset())
 }

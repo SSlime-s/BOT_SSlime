@@ -1,8 +1,29 @@
+use chrono::DateTime;
 use serde_json::Value;
 
-use crate::{BOT_ACCESS_TOKEN, TARGET_USER_ID};
+use crate::{db::MessageRecord, BOT_ACCESS_TOKEN, TARGET_USER_ID};
 
 const BASE_URL: &str = "https://q.trap.jp/api/v3";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Message {
+    id: String,
+    channel_id: String,
+    content: String,
+    created_at: String,
+}
+impl From<&Message> for MessageRecord {
+    fn from(message: &Message) -> Self {
+        MessageRecord {
+            id: message.id.clone(),
+            channel_id: message.channel_id.clone(),
+            content: message.content.clone(),
+            created_at: DateTime::parse_from_rfc3339(&message.created_at)
+                .unwrap()
+                .naive_local(),
+        }
+    }
+}
 
 fn create_client() -> reqwest::Client {
     let mut headers = reqwest::header::HeaderMap::new();
@@ -18,7 +39,7 @@ fn create_client() -> reqwest::Client {
 }
 
 /// /messages のレスポンスを解釈し、totalHits と messages の中身のタプルを返す
-fn parse_messages_response(res: String) -> anyhow::Result<(usize, Vec<String>)> {
+fn parse_messages_response(res: String) -> anyhow::Result<(usize, Vec<Message>)> {
     let res_json: Value = serde_json::from_str(&res)?;
 
     // schema: { "hits": { "content": "string" }[], "totalHits": number } }
@@ -26,13 +47,18 @@ fn parse_messages_response(res: String) -> anyhow::Result<(usize, Vec<String>)> 
     let total_hits = res_json["totalHits"].as_u64().unwrap() as usize;
     let messages = hits
         .iter()
-        .map(|hit| hit["content"].as_str().unwrap().to_string())
-        .collect::<Vec<String>>();
+        .map(|hit| Message {
+            id: hit["id"].as_str().unwrap().to_string(),
+            channel_id: hit["channelId"].as_str().unwrap().to_string(),
+            content: hit["content"].as_str().unwrap().to_string(),
+            created_at: hit["createdAt"].as_str().unwrap().to_string(),
+        })
+        .collect::<Vec<Message>>();
     Ok((total_hits, messages))
 }
 
 /// /messages を offset に従って叩いて、totalHits と messages の中身のタプルを返す
-pub async fn get_messages(offset: usize) -> anyhow::Result<(usize, Vec<String>)> {
+pub async fn get_messages(offset: usize) -> anyhow::Result<(usize, Vec<Message>)> {
     let client = create_client();
 
     let url = format!("{BASE_URL}/messages");
@@ -56,8 +82,8 @@ pub async fn get_messages(offset: usize) -> anyhow::Result<(usize, Vec<String>)>
 /// /messages を after と offset に従って叩いて、totalHits と messages の中身のタプルを返す
 pub async fn get_messages_with_time_section<Tz>(
     offset: usize,
-    after: chrono::DateTime<Tz>,
-) -> anyhow::Result<(usize, Vec<String>)>
+    after: &chrono::DateTime<Tz>,
+) -> anyhow::Result<(usize, Vec<Message>)>
 where
     Tz: chrono::TimeZone,
     Tz::Offset: std::fmt::Display,

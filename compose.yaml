@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  bot:
+    container_name: sslime-bot
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    volumes:
+      - ./:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    command: /bin/sh -c "cargo run"
+    tty: true
+
+  db:
+    container_name: sslime-db
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: "password"
+      MYSQL_DATABASE: "sslime-bot"
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - ./mysql/data:/var/lib/mysql:z
+      - ./mysql/init:/docker-entrypoint-initdb.d:z
+
+volumes:
+  cargo-cache:
+  target-cache:
