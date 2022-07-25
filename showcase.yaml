@@ -2,6 +2,6 @@ type: "runtime"
 
 startup: "./target/release/bot-sslime"
 
-# use_mariadb: true
+use_mariadb: true
 
 internal: hard
