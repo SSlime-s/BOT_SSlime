@@ -6,3 +6,21 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chrono = "0.4.19"
+dotenv = "0.15.0"
+lindera = "0.14.0"
+markov = "1.1.0"
+once_cell = "1.13.0"
+serde = { version = "1.0.140", features = ["derive"] }
+serde_json = "1.0.82"
+tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.5", features = ["mysql", "runtime-tokio-rustls", "chrono"] }
+rocket = "0.5.0-rc.2"
+reqwest = "0.11.11"
+progress = "0.2.0"
+anyhow = "1.0.58"
+tokio-tungstenite = { version = "0.17.2", features = ["native-tls"] }
+url = "2.2.2"
+http = "0.2.8"
+env_logger = "0.9.0"
+log = "0.4.17"
