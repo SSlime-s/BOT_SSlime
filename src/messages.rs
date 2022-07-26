@@ -38,7 +38,8 @@ where
             .iter()
             .map(MessageRecord::from)
             .collect::<Vec<MessageRecord>>(),
-    ).await?;
+    )
+    .await?;
 
     messages.extend(res_messages);
 
@@ -63,7 +64,8 @@ where
                 .iter()
                 .map(MessageRecord::from)
                 .collect::<Vec<MessageRecord>>(),
-        ).await?;
+        )
+        .await?;
 
         messages.extend(res_messages);
 

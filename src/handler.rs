@@ -1,8 +1,8 @@
-use log::{info, error, debug};
+use log::{debug, error, info};
 use rocket::futures::{channel::mpsc::UnboundedSender, SinkExt};
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::{events::Events, api, generate_message};
+use crate::{api, events::Events, generate_message};
 
 pub async fn handler_message(message: Message, tx: &UnboundedSender<Message>) {
     match message {
@@ -17,11 +17,8 @@ pub async fn handler_message(message: Message, tx: &UnboundedSender<Message>) {
             };
             match event {
                 Events::Join { channel_id } => {
-                    let res = api::post_message(
-                        channel_id,
-                        "参加しました :blob_pyon:".to_string(),
-                    )
-                    .await;
+                    let res =
+                        api::post_message(channel_id, "参加しました :blob_pyon:".to_string()).await;
                     match res {
                         Ok(_) => (),
                         Err(e) => error!("{}", e),
