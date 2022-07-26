@@ -46,7 +46,7 @@ pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
 });
 
 /// この正規表現に一致するメッセージは、markov chain に反映されない
-pub static BLOCK_MESSAGE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^:awoo:$").unwrap());
+pub static BLOCK_MESSAGE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?::awoo:|(?:https?:)//\S+\n*)?$").unwrap());
 
 pub const SAVE_PATH: &str = "markov.yaml";
 
