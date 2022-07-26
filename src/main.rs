@@ -217,6 +217,7 @@ pub async fn update_markov_chain(pool: &MySqlPool) -> anyhow::Result<()> {
 }
 
 async fn save_chain(pool: &MySqlPool) -> anyhow::Result<()> {
+    return Ok(());
     // DB への保存は showcase 上ではサイズの関係でうまく動かなかったから、実際には DB に保存しない
     {
         MARKOV_CHAIN.lock().unwrap().save(SAVE_PATH)?;
@@ -228,6 +229,7 @@ async fn save_chain(pool: &MySqlPool) -> anyhow::Result<()> {
 }
 
 async fn load_chain(pool: &MySqlPool) -> anyhow::Result<Option<NaiveDateTime>> {
+    return Ok(None);
     let content = get_markov_cache(pool).await?;
 
     let content = match content {
