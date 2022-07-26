@@ -13,7 +13,8 @@ pub async fn start_scheduling(
 ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
     let main_scheduler = JobScheduler::new()?;
 
-    let post_job = Job::new_async("0 0,20,40 0,7-23 * * *", move |_uuid, _lock| {
+    // 日本時間で 0 0,20,40 0,7-23 * * * (cron は UTC)
+    let post_job = Job::new_async("0 0,20,40 0-15,22-23 * * *", move |_uuid, _lock| {
         Box::pin(async {
             let next_span = rand::thread_rng().gen_range(1..20);
             debug!("scheduled at {} minutes later", next_span);
