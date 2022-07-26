@@ -2,7 +2,7 @@ use chrono::DateTime;
 use log::debug;
 use serde_json::Value;
 
-use crate::{db::MessageRecord, BOT_ACCESS_TOKEN, TARGET_USER_ID, BOT_ID};
+use crate::{db::MessageRecord, BOT_ACCESS_TOKEN, BOT_ID, TARGET_USER_ID};
 
 const BASE_URL: &str = "https://q.trap.jp/api/v3";
 
@@ -143,16 +143,18 @@ pub async fn join_channel(channel_id: String) -> anyhow::Result<()> {
     let res = client
         .post(&url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .body(format!(
-            r#"{{"channelId": "{}"}}"#,
-            channel_id
-        ))
+        .body(
+            serde_json::json!({
+                "channelId": channel_id,
+            })
+            .to_string(),
+        )
         .send()
         .await?
         .text()
         .await?;
 
-    debug!("{}", res);
+    debug!("{:?}", res);
     Ok(())
 }
 
@@ -165,10 +167,7 @@ pub async fn leave_channel(channel_id: String) -> anyhow::Result<()> {
     let res = client
         .post(&url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .body(format!(
-            r#"{{"channelId": "{}"}}"#,
-            channel_id
-        ))
+        .body(format!(r#"{{"channelId": "{}"}}"#, channel_id))
         .send()
         .await?
         .text()

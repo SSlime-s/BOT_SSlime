@@ -32,7 +32,11 @@ pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Ch
 pub const TARGET_USER_ID: &str = "81bbc211-65aa-4a45-8c56-e0b78d25f9e5";
 
 /// この BOT の UUID
-pub const BOT_ID: &str = "d8ff0b6c-431f-4476-9708-cb9d2e49b0a5";
+pub const BOT_ID: &str = "32bbdf6e-8170-4987-ba20-71ecc589e4a6";
+
+/// この BOT の USER ID
+pub const BOT_USER_ID: &str = "d8ff0b6c-431f-4476-9708-cb9d2e49b0a5";
+
 
 pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
     dotenv().ok();

@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::BOT_ID;
+use crate::BOT_USER_ID;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Events {
@@ -24,7 +24,7 @@ impl Events {
                     .as_array()
                     .ok_or("body.message.embedded is not array")?
                     .iter()
-                    .any(|emb| emb["id"].as_str() == Some(BOT_ID))
+                    .any(|emb| emb["id"].as_str() == Some(BOT_USER_ID))
                 {
                     let content = event_json["body"]["message"]["plainText"]
                         .as_str()
