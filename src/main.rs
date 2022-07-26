@@ -31,6 +31,9 @@ pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Ch
 /// 収集するユーザーの UUID
 pub const TARGET_USER_ID: &str = "81bbc211-65aa-4a45-8c56-e0b78d25f9e5";
 
+/// この BOT の UUID
+pub const BOT_ID: &str = "d8ff0b6c-431f-4476-9708-cb9d2e49b0a5";
+
 pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
     dotenv().ok();
     env::var("BOT_ACCESS_TOKEN").expect("BOT_ACCESS_TOKEN is not set")
@@ -122,8 +125,39 @@ async fn main() -> anyhow::Result<()> {
                         }
                     };
                     match event {
-                        Events::DirectMessageCreated { channel_id } => {
+                        Events::DirectMessageCreated { channel_id }
+                        | Events::MessageCreated { channel_id } => {
                             let res_msg = generate_message();
+                            let res = api::post_message(channel_id, res_msg).await;
+                            match res {
+                                Ok(_) => (),
+                                Err(e) => {
+                                    error!("{}", e);
+                                }
+                            }
+                        }
+                        Events::MentionMessageCreated {
+                            channel_id,
+                            content,
+                        } => {
+                            let res_msg;
+                            let res = if content.contains("join") {
+                                res_msg = "参加しました :blob_pyon:".to_string();
+                                api::join_channel(channel_id.clone()).await
+                            } else if content.contains("leave") {
+                                res_msg = "退出しました :blob_speedy_roll_inverse:".to_string();
+                                api::leave_channel(channel_id.clone()).await
+                            } else {
+                                res_msg = generate_message();
+                                Ok(())
+                            };
+                            match res {
+                                Ok(_) => (),
+                                Err(e) => {
+                                    error!("{}", e);
+                                    return;
+                                }
+                            }
                             let res = api::post_message(channel_id, res_msg).await;
                             match res {
                                 Ok(_) => (),

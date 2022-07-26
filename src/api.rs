@@ -1,7 +1,8 @@
 use chrono::DateTime;
+use log::debug;
 use serde_json::Value;
 
-use crate::{db::MessageRecord, BOT_ACCESS_TOKEN, TARGET_USER_ID};
+use crate::{db::MessageRecord, BOT_ACCESS_TOKEN, TARGET_USER_ID, BOT_ID};
 
 const BASE_URL: &str = "https://q.trap.jp/api/v3";
 
@@ -129,6 +130,50 @@ pub async fn post_message(channel_id: String, message: String) -> anyhow::Result
         .text()
         .await?;
 
-    println!("{}", res);
+    debug!("{}", res);
+    Ok(())
+}
+
+/// 指定のチャンネルに参加する
+pub async fn join_channel(channel_id: String) -> anyhow::Result<()> {
+    let client = create_client();
+
+    let url = format!("{}/bots/{}/actions/join", BASE_URL, BOT_ID);
+
+    let res = client
+        .post(&url)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .body(format!(
+            r#"{{"channelId": "{}"}}"#,
+            channel_id
+        ))
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    debug!("{}", res);
+    Ok(())
+}
+
+/// 指定のチャンネルから退出する
+pub async fn leave_channel(channel_id: String) -> anyhow::Result<()> {
+    let client = create_client();
+
+    let url = format!("{}/bots/{}/actions/leave", BASE_URL, BOT_ID);
+
+    let res = client
+        .post(&url)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .body(format!(
+            r#"{{"channelId": "{}"}}"#,
+            channel_id
+        ))
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    debug!("{}", res);
     Ok(())
 }

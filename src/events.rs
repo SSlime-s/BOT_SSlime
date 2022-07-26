@@ -5,7 +5,7 @@ pub enum Events {
     Ping,
     MessageCreated { channel_id: String },
     DirectMessageCreated { channel_id: String },
-    MentionMessageCreated { channel_id: String },
+    MentionMessageCreated { channel_id: String, content: String },
 }
 impl Events {
     pub fn from_str(event_str: impl AsRef<str>) -> Result<Events, String> {
@@ -27,8 +27,10 @@ impl Events {
             }
             "MENTION_MESSAGE_CREATED" => {
                 let channel_id = event_json["body"]["message"]["channelId"].as_str().ok_or("body.message.channelId is not string")?;
+                let content = event_json["body"]["message"]["plainText"].as_str().ok_or("body.message.content is not string")?;
                 Events::MentionMessageCreated {
                     channel_id: channel_id.to_string(),
+                    content: content.to_string(),
                 }
             }
             _ => return Err(format!("Unknown event type: {}", event_type)),
