@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use log::error;
+use log::{error, debug};
 use rand::Rng;
 use sqlx::MySqlPool;
 use tokio_cron_scheduler::{Job, JobScheduler};
@@ -13,9 +13,9 @@ pub async fn start_scheduling(
 ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
     let main_scheduler = JobScheduler::new()?;
 
-    let create_post_job = Job::new_async("0 0 * * * *", move |_uuid, _lock| {
+    let create_post_job = Job::new_async("0 0/20/40 * * * *", move |_uuid, _lock| {
         Box::pin(async {
-            let next_span = rand::thread_rng().gen_range(1..60);
+            let next_span = rand::thread_rng().gen_range(1..20);
             let next_job =
                 Job::new_one_shot_async(Duration::from_secs(next_span * 60), |_uuid, _lock| {
                     Box::pin(async {
@@ -50,6 +50,7 @@ pub async fn start_scheduling(
                     return;
                 }
             };
+            debug!("scheduled at {} minutes later", next_span);
             if let Err(e) = post_loop.await {
                 error!("{}", e);
             }
