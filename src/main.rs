@@ -68,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
             }
             None => {
                 debug!("no cache found");
-                let messages = get_messages(&pool).await?;
+                let messages = fetch_messages::<Local>(&pool, None, None).await?;
                 feed_messages(
                     &messages
                         .iter()
