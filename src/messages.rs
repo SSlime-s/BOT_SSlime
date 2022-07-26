@@ -6,10 +6,14 @@ use crate::{
     db::{self, MessageRecord},
 };
 
-#[allow(dead_code)]
 pub async fn get_messages(pool: &MySqlPool) -> anyhow::Result<Vec<MessageRecord>> {
     let messages = db::get_messages(pool).await?;
     Ok(messages)
+}
+
+pub async fn get_latest_message(pool: &MySqlPool) -> anyhow::Result<Option<MessageRecord>> {
+    let message = db::get_latest_message(pool).await?;
+    Ok(message)
 }
 
 pub async fn fetch_messages<Tz>(

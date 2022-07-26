@@ -1,4 +1,4 @@
 /target
 .env
-*-markov
+markov.yaml
 /mysql/data

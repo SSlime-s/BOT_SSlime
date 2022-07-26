@@ -96,3 +96,10 @@ pub async fn get_messages(pool: &MySqlPool) -> anyhow::Result<Vec<MessageRecord>
         .await?;
     Ok(messages)
 }
+
+pub async fn get_latest_message(pool: &MySqlPool) -> anyhow::Result<Option<MessageRecord>> {
+    let message: Option<MessageRecord> = sqlx::query_as("SELECT * FROM messages ORDER BY created_at DESC LIMIT 1;")
+        .fetch_optional(pool)
+        .await?;
+    Ok(message)
+}

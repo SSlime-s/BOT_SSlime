@@ -23,7 +23,7 @@ use log::{debug, error, info};
 
 use crate::{
     db::{connect_db, get_markov_cache, update_markov_cache},
-    messages::fetch_messages,
+    messages::{fetch_messages, get_latest_message, get_messages},
 };
 
 pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Chain::of_order(3)));
@@ -39,8 +39,11 @@ pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
 /// この正規表現に一致するメッセージは、markov chain に反映されない
 pub static BLOCK_MESSAGE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^:awoo:$").unwrap());
 
+pub const SAVE_PATH: &str = "markov.yaml";
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    info!("Starting...");
     dotenv().ok();
     env_logger::init();
 
@@ -68,7 +71,12 @@ async fn main() -> anyhow::Result<()> {
             }
             None => {
                 debug!("no cache found");
-                let messages = fetch_messages::<Local>(&pool, None, None).await?;
+                let after = match get_latest_message(&pool).await? {
+                    Some(message) => Some(naive_to_local(message.created_at)),
+                    None => None,
+                };
+                fetch_messages::<Local>(&pool, None, after).await?;
+                let messages = get_messages(&pool).await?;
                 feed_messages(
                     &messages
                         .iter()
@@ -175,18 +183,12 @@ fn request_with_authorization(url: &str, token: &str) -> anyhow::Result<http::Re
 }
 
 async fn save_chain(pool: &MySqlPool) -> anyhow::Result<()> {
-    let content;
+    // DB への保存は showcase 上ではサイズの関係でうまく動かなかったから、実際には DB に保存しない
     {
-        debug!("saving markov chain cache...");
-        let chain = MARKOV_CHAIN.lock().unwrap();
-        debug!("get lock");
-        content = serde_yaml::to_string(&*chain)?;
-        debug!("markov chain cache created");
+        MARKOV_CHAIN.lock().unwrap().save(SAVE_PATH)?;
     }
 
-    debug!("updating markov chain cache...");
-    update_markov_cache(pool, &content).await?;
-    debug!("markov chain cache updated");
+    update_markov_cache(pool, "").await?;
 
     Ok(())
 }
@@ -199,8 +201,14 @@ async fn load_chain(pool: &MySqlPool) -> anyhow::Result<Option<NaiveDateTime>> {
         None => return Ok(None),
     };
 
-    let chain: Chain<String> = serde_yaml::from_str(&content.cache)?;
-    *MARKOV_CHAIN.lock().unwrap() = chain;
+    match Chain::load(SAVE_PATH) {
+        Ok(chain) => {
+            *MARKOV_CHAIN.lock().unwrap() = chain;
+        }
+        Err(_e) => {
+            return Ok(None);
+        }
+    }
 
     Ok(Some(content.last_update))
 }
