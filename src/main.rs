@@ -114,15 +114,25 @@ fn message_split_stamp(mut messages: String) -> Vec<ContentType> {
         match mat {
             Some(mat) => {
                 if mat.start() == 0 {
-                    let (stamp, rest) = messages.split_at(mat.end());
-                    result.push(ContentType::Stamp(stamp.to_string()));
-                    messages = rest.to_string();
+                    if mat.end() == messages.len() {
+                        result.push(ContentType::Stamp(messages.clone()));
+                        break;
+                    } else {
+                        let (stamp, rest) = messages.split_at(mat.end());
+                        result.push(ContentType::Stamp(stamp.to_string()));
+                        messages = rest.to_string();
+                    }
                 } else {
                     let (text, rest) = messages.split_at(mat.start());
                     result.push(ContentType::Text(text.to_string()));
-                    let (stamp, rest) = rest.split_at(mat.end());
-                    result.push(ContentType::Stamp(stamp.to_string()));
-                    messages = rest.to_string();
+                    if mat.end() == messages.len() {
+                        result.push(ContentType::Stamp(messages.clone()));
+                        break;
+                    } else {
+                        let (stamp, rest) = rest.split_at(mat.end());
+                        result.push(ContentType::Stamp(stamp.to_string()));
+                        messages = rest.to_string();
+                    }
                 }
             }
             None => {
