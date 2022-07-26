@@ -1,28 +1,28 @@
 mod api;
+mod cron;
 mod db;
 mod events;
+mod handler;
 mod messages;
 
 use std::{env, sync::Mutex};
 
 use chrono::{DateTime, Local, NaiveDateTime};
 use dotenv::dotenv;
-use events::Events;
 use lindera::tokenizer::Tokenizer;
 use markov::Chain;
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use regex::Regex;
-use rocket::futures::{future, SinkExt, StreamExt};
+use rocket::futures::{future, StreamExt};
 use sqlx::MySqlPool;
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{handshake::client::generate_key, protocol::Message},
-};
+use tokio_tungstenite::{connect_async, tungstenite::handshake::client::generate_key};
 
 use log::{debug, error, info};
 
 use crate::{
+    cron::start_scheduling,
     db::{connect_db, get_markov_cache, update_markov_cache},
+    handler::handler_message,
     messages::{fetch_messages, get_latest_message, get_messages},
 };
 
@@ -37,6 +37,8 @@ pub const BOT_ID: &str = "32bbdf6e-8170-4987-ba20-71ecc589e4a6";
 /// この BOT の USER ID
 pub const BOT_USER_ID: &str = "d8ff0b6c-431f-4476-9708-cb9d2e49b0a5";
 
+/// 定期投稿するチャンネルの UUID
+pub const CRON_CHANNEL_ID: &str = "todo";
 
 pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
     dotenv().ok();
@@ -48,6 +50,8 @@ pub static BLOCK_MESSAGE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^:awoo:$
 
 pub const SAVE_PATH: &str = "markov.yaml";
 
+pub static POOL: OnceCell<MySqlPool> = OnceCell::new();
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     info!("Starting...");
@@ -55,52 +59,19 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let pool = connect_db().await?;
+    POOL.set(pool).unwrap();
+
     debug!("db connected");
 
     let ws_url = "wss://q.trap.jp/api/v3/bots/ws";
     // let ws_url = "ws://localhost:3000";
 
     info!("loading markov chain cache...");
-    match load_chain(&pool).await {
-        Ok(res) => match res {
-            Some(last_updated) => {
-                if last_updated < Local::now().naive_local() - chrono::Duration::hours(24) {
-                    debug!("markov chain is too old, updating...");
-                    let messages =
-                        fetch_messages(&pool, None, Some(naive_to_local(last_updated))).await?;
-                    feed_messages(
-                        &messages
-                            .iter()
-                            .map(|m| m.content.clone())
-                            .collect::<Vec<String>>(),
-                    );
-                }
-            }
-            None => {
-                debug!("no cache found");
-                let after = match get_latest_message(&pool).await? {
-                    Some(message) => Some(naive_to_local(message.created_at)),
-                    None => None,
-                };
-                fetch_messages::<Local>(&pool, None, after).await?;
-                let messages = get_messages(&pool).await?;
-                feed_messages(
-                    &messages
-                        .iter()
-                        .map(|m| m.content.clone())
-                        .collect::<Vec<String>>(),
-                );
-            }
-        },
-        Err(e) => {
-            error!("failed to load markov chain: {}", e);
-            return Err(e);
-        }
-    };
+    update_markov_chain(POOL.get().unwrap()).await?;
     info!("markov chain loaded successfully !");
 
     info!("saving markov chain cache...");
-    save_chain(&pool).await?;
+    save_chain(POOL.get().unwrap()).await?;
     info!("markov chain saved successfully !");
 
     let request = request_with_authorization(ws_url, BOT_ACCESS_TOKEN.as_str())?;
@@ -117,91 +88,13 @@ async fn main() -> anyhow::Result<()> {
 
     let read_loop = {
         read.for_each(|message| async {
-            let message = message.unwrap();
-            match message {
-                Message::Text(text) => {
-                    info!("Received: {}", text);
-                    let event = match Events::from_str(&text) {
-                        Ok(event) => event,
-                        Err(e) => {
-                            error!("{}", e);
-                            return;
-                        }
-                    };
-                    match event {
-                        Events::Join { channel_id } => {
-                            let res = api::post_message(
-                                channel_id,
-                                "参加しました :blob_pyon:".to_string(),
-                            )
-                            .await;
-                            match res {
-                                Ok(_) => (),
-                                Err(e) => error!("{}", e),
-                            }
-                        }
-                        Events::Left { channel_id } => {
-                            let res = api::post_message(
-                                channel_id,
-                                "退出しました :blob_speedy_roll_inverse:".to_string(),
-                            )
-                            .await;
-                            match res {
-                                Ok(_) => (),
-                                Err(e) => error!("{}", e),
-                            }
-                        }
-                        Events::DirectMessageCreated { channel_id }
-                        | Events::MessageCreated { channel_id } => {
-                            let res_msg = generate_message();
-                            let res = api::post_message(channel_id, res_msg).await;
-                            match res {
-                                Ok(_) => (),
-                                Err(e) => {
-                                    error!("{}", e);
-                                }
-                            }
-                        }
-                        Events::MentionMessageCreated {
-                            channel_id,
-                            content,
-                        } => {
-                            if content.contains("join") {
-                                let res = api::join_channel(channel_id.clone()).await;
-                                if let Err(e) = res {
-                                    error!("{}", e);
-                                }
-                                return;
-                            } else if content.contains("leave") {
-                                let res = api::leave_channel(channel_id.clone()).await;
-                                if let Err(e) = res {
-                                    error!("{}", e);
-                                }
-                                return;
-                            }
-                            let res_msg = generate_message();
-                            let res = api::post_message(channel_id, res_msg).await;
-                            match res {
-                                Ok(_) => (),
-                                Err(e) => {
-                                    error!("{}", e);
-                                }
-                            }
-                        }
-                        _ => error!("\"{:?}\" is not implemented", event),
-                    }
-                }
-                Message::Ping(data) => {
-                    debug!("Received ping: {:?}", data);
-                    let msg = Message::Pong(data);
-                    tx.clone().send(msg).await.unwrap();
-                }
-                _ => error!("Received: {:?} is not supported", message),
-            };
+            handler_message(message.unwrap(), &tx).await;
         })
     };
 
-    let _ = future::join(write_loop, read_loop).await;
+    let cron_loop = start_scheduling(POOL.get().unwrap(), CRON_CHANNEL_ID).await?;
+
+    let _ = future::join3(write_loop, read_loop, cron_loop).await;
 
     Ok(())
 }
@@ -236,6 +129,46 @@ fn request_with_authorization(url: &str, token: &str) -> anyhow::Result<http::Re
         .header("Authorization", format!("Bearer {}", token))
         .body(())?;
     Ok(req)
+}
+
+pub async fn update_markov_chain(pool: &MySqlPool) -> anyhow::Result<()> {
+    match load_chain(pool).await {
+        Ok(res) => match res {
+            Some(last_updated) => {
+                if last_updated < Local::now().naive_local() - chrono::Duration::hours(20) {
+                    debug!("markov chain is too old, updating...");
+                    let messages =
+                        fetch_messages(pool, None, Some(naive_to_local(last_updated))).await?;
+                    feed_messages(
+                        &messages
+                            .iter()
+                            .map(|m| m.content.clone())
+                            .collect::<Vec<String>>(),
+                    );
+                }
+            }
+            None => {
+                debug!("no cache found");
+                let after = match get_latest_message(&pool).await? {
+                    Some(message) => Some(naive_to_local(message.created_at)),
+                    None => None,
+                };
+                fetch_messages::<Local>(&pool, None, after).await?;
+                let messages = get_messages(&pool).await?;
+                feed_messages(
+                    &messages
+                        .iter()
+                        .map(|m| m.content.clone())
+                        .collect::<Vec<String>>(),
+                );
+            }
+        },
+        Err(e) => {
+            error!("failed to load markov chain: {}", e);
+            return Err(e);
+        }
+    };
+    Ok(())
 }
 
 async fn save_chain(pool: &MySqlPool) -> anyhow::Result<()> {
