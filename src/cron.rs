@@ -13,7 +13,7 @@ pub async fn start_scheduling(
 ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
     let main_scheduler = JobScheduler::new()?;
 
-    let create_post_job = Job::new_async("0 0/20/40 * * * *", move |_uuid, _lock| {
+    let create_post_job = Job::new_async("0 0/20/40 0,7-23 * * *", move |_uuid, _lock| {
         Box::pin(async {
             let next_span = rand::thread_rng().gen_range(1..20);
             let next_job =
