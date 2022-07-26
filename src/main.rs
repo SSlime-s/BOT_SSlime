@@ -126,10 +126,10 @@ fn message_split_stamp(mut messages: String) -> Vec<ContentType> {
                     let (text, rest) = messages.split_at(mat.start());
                     result.push(ContentType::Text(text.to_string()));
                     if mat.end() == messages.len() {
-                        result.push(ContentType::Stamp(messages.clone()));
+                        result.push(ContentType::Stamp(rest.to_string()));
                         break;
                     } else {
-                        let (stamp, rest) = rest.split_at(mat.end());
+                        let (stamp, rest) = rest.split_at(mat.end() - mat.start());
                         result.push(ContentType::Stamp(stamp.to_string()));
                         messages = rest.to_string();
                     }
