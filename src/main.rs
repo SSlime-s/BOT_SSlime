@@ -46,7 +46,8 @@ pub static BOT_ACCESS_TOKEN: Lazy<String> = Lazy::new(|| {
 });
 
 /// この正規表現に一致するメッセージは、markov chain に反映されない
-pub static BLOCK_MESSAGE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?::awoo:|(?:https?:)//\S+\n*)?$").unwrap());
+pub static BLOCK_MESSAGE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^(?::awoo:|(?:https?:)//\S+\n*)?$").unwrap());
 
 pub const SAVE_PATH: &str = "markov.yaml";
 
@@ -99,13 +100,57 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+static STAMP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r":@?(?:\w|[-.])+:").unwrap());
+
+#[derive(Debug, Clone)]
+enum ContentType {
+    Text(String),
+    Stamp(String),
+}
+fn message_split_stamp(mut messages: String) -> Vec<ContentType> {
+    let mut result = Vec::new();
+    loop {
+        let mat = STAMP_REGEX.find(&messages);
+        match mat {
+            Some(mat) => {
+                if mat.start() == 0 {
+                    let (stamp, rest) = messages.split_at(mat.end());
+                    result.push(ContentType::Stamp(stamp.to_string()));
+                    messages = rest.to_string();
+                } else {
+                    let (text, rest) = messages.split_at(mat.start());
+                    result.push(ContentType::Text(text.to_string()));
+                    let (stamp, rest) = rest.split_at(mat.end());
+                    result.push(ContentType::Stamp(stamp.to_string()));
+                    messages = rest.to_string();
+                }
+            }
+            None => {
+                if !messages.is_empty() {
+                    result.push(ContentType::Text(messages));
+                }
+                break;
+            }
+        }
+    }
+    result
+}
+
 fn feed_messages(messages: &[String]) {
     let tokenizer = Tokenizer::new().unwrap();
     for message in messages {
         if BLOCK_MESSAGE_REGEX.is_match(message) {
             continue;
         }
-        let tokens = tokenizer.tokenize_str(message).unwrap();
+        let message_elements = message_split_stamp(message.to_string());
+        let tokens = message_elements
+            .iter()
+            .flat_map(|e| match e {
+                ContentType::Text(text) => tokenizer.tokenize_str(text).unwrap(),
+                ContentType::Stamp(stamp) => vec![stamp.as_str()],
+            })
+            .collect::<Vec<_>>();
+
         let token = tokens.join(" ");
         MARKOV_CHAIN.lock().unwrap().feed_str(&token);
     }
