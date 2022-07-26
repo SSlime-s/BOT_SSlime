@@ -102,13 +102,20 @@ async fn main() -> anyhow::Result<()> {
 
 static STAMP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r":@?(?:\w|[-.])+:").unwrap());
 
+/// format
+/// !{"type":"user","raw":"@BOT_SSlime","id":"d8ff0b6c-431f-4476-9708-cb9d2e49b0a5"}
+/// !{"type":"channel","raw":"#gps/times/SSlime/bot","id":"11c32e27-5aa5-44f2-bc3b-ef8e94103ccf"}
+static SPECIAL_LINK_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"!\{"type":"\w+","raw":!"([^"]+)","id":"(?:\w|[-])+"\}"#).unwrap());
+
 #[derive(Debug, Clone)]
 enum ContentType {
     Text(String),
     Stamp(String),
 }
-fn message_split_stamp(mut messages: String) -> Vec<ContentType> {
+fn message_split_stamp(messages: String) -> Vec<ContentType> {
     let mut result = Vec::new();
+    let mut messages = SPECIAL_LINK_REGEX.replace_all(&messages, "$1").to_string();
     loop {
         let mat = STAMP_REGEX.find(&messages);
         match mat {
