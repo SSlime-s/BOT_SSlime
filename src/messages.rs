@@ -28,6 +28,14 @@ where
     };
     let (total_hit, res_messages) = r;
 
+    db::insert_messages(
+        pool,
+        &res_messages
+            .iter()
+            .map(MessageRecord::from)
+            .collect::<Vec<MessageRecord>>(),
+    ).await?;
+
     messages.extend(res_messages);
 
     let limit = limit.map(|l| l.min(total_hit)).unwrap_or(total_hit);
@@ -38,25 +46,33 @@ where
             Some(after) => api::get_messages_with_time_section(now, after).await?,
             None => api::get_messages(now).await?,
         };
+
+        let interval = tokio::spawn(async {
+            std::thread::sleep(std::time::Duration::from_micros(300));
+        });
+
         let (_, res_messages) = r;
+
+        db::insert_messages(
+            pool,
+            &res_messages
+                .iter()
+                .map(MessageRecord::from)
+                .collect::<Vec<MessageRecord>>(),
+        ).await?;
 
         messages.extend(res_messages);
 
         now = messages.len();
 
-        std::thread::sleep(std::time::Duration::from_millis(300));
+        interval.await.unwrap();
     }
 
     if messages.len() > limit {
         messages.truncate(limit);
     }
 
-    let messages = messages
-        .iter()
-        .map(MessageRecord::from)
-        .collect::<Vec<_>>();
-
-    db::insert_messages(pool, &messages).await?;
+    let messages = messages.iter().map(MessageRecord::from).collect::<Vec<_>>();
 
     Ok(messages)
 }

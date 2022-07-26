@@ -22,7 +22,7 @@ use tokio_tungstenite::{
 use log::{debug, error, info};
 
 use crate::{
-    db::{connect_db, get_markov_cache, update_markov_cache, get_messages},
+    db::{connect_db, get_markov_cache, update_markov_cache},
     messages::fetch_messages,
 };
 
