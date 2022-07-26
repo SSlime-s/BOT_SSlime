@@ -1,15 +1,13 @@
 ## gitea に同期する用の actions
 name: main
-
 on:
   push:
     branches:
       - 'main'
-
 env:
   GITEA_SSH_URL: 'ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git'
   RUST_VERSION: '1.62.0'
-  OUTPUT_DIR: './bot-sslime'
+  OUTPUT_DIR: 'target'
 
 jobs:
   setup: # install + build
@@ -35,11 +33,8 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build binary
-        run: docker run --rm -u root -v `pwd`:/home/rust/src ekidd/rust-musl-builder cargo build --release
-
-      - name: Copy binary
-        run: cp ./target/x86_64-unknown-linux-musl/release/bot-sslime ${{ env.OUTPUT_DIR }}
+      - name: Build
+        run: cargo build --release
 
       - name: Cache Build
         uses: actions/cache@v3

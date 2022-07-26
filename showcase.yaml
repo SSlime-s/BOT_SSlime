@@ -1,6 +1,6 @@
 type: "runtime"
 
-entrypoint: "./bot-sslime"
+entrypoint: "./target/release/bot-sslime"
 
 http_proxy: 8080
 
