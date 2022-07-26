@@ -5,6 +5,8 @@ use crate::BOT_USER_ID;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Events {
     Ping,
+    Join { channel_id: String },
+    Left { channel_id: String },
     MessageCreated { channel_id: String },
     DirectMessageCreated { channel_id: String },
     MentionMessageCreated { channel_id: String, content: String },
@@ -44,6 +46,18 @@ impl Events {
                     .as_str()
                     .ok_or("body.message.channelId is not string")?;
                 Events::DirectMessageCreated {
+                    channel_id: channel_id.to_string(),
+                }
+            }
+            "JOINED" => {
+                let channel_id = event_json["body"]["channel"]["id"].as_str().unwrap();
+                Events::Join {
+                    channel_id: channel_id.to_string(),
+                }
+            }
+            "LEFT" => {
+                let channel_id = event_json["body"]["channel"]["id"].as_str().unwrap();
+                Events::Left {
                     channel_id: channel_id.to_string(),
                 }
             }

@@ -129,6 +129,28 @@ async fn main() -> anyhow::Result<()> {
                         }
                     };
                     match event {
+                        Events::Join { channel_id } => {
+                            let res = api::post_message(
+                                channel_id,
+                                "参加しました :blob_pyon:".to_string(),
+                            )
+                            .await;
+                            match res {
+                                Ok(_) => (),
+                                Err(e) => error!("{}", e),
+                            }
+                        }
+                        Events::Left { channel_id } => {
+                            let res = api::post_message(
+                                channel_id,
+                                "退出しました :blob_speedy_roll_inverse:".to_string(),
+                            )
+                            .await;
+                            match res {
+                                Ok(_) => (),
+                                Err(e) => error!("{}", e),
+                            }
+                        }
                         Events::DirectMessageCreated { channel_id }
                         | Events::MessageCreated { channel_id } => {
                             let res_msg = generate_message();
@@ -144,24 +166,20 @@ async fn main() -> anyhow::Result<()> {
                             channel_id,
                             content,
                         } => {
-                            let res_msg;
-                            let res = if content.contains("join") {
-                                res_msg = "参加しました :blob_pyon:".to_string();
-                                api::join_channel(channel_id.clone()).await
-                            } else if content.contains("leave") {
-                                res_msg = "退出しました :blob_speedy_roll_inverse:".to_string();
-                                api::leave_channel(channel_id.clone()).await
-                            } else {
-                                res_msg = generate_message();
-                                Ok(())
-                            };
-                            match res {
-                                Ok(_) => (),
-                                Err(e) => {
+                            if content.contains("join") {
+                                let res = api::join_channel(channel_id.clone()).await;
+                                if let Err(e) = res {
                                     error!("{}", e);
-                                    return;
                                 }
+                                return;
+                            } else if content.contains("leave") {
+                                let res = api::leave_channel(channel_id.clone()).await;
+                                if let Err(e) = res {
+                                    error!("{}", e);
+                                }
+                                return;
                             }
+                            let res_msg = generate_message();
                             let res = api::post_message(channel_id, res_msg).await;
                             match res {
                                 Ok(_) => (),
