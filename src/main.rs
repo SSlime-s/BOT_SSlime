@@ -212,7 +212,8 @@ pub async fn update_markov_chain(pool: &MySqlPool) -> anyhow::Result<()> {
                 let after = get_latest_message(pool)
                     .await?
                     .map(|m| naive_to_local(m.created_at));
-                fetch_messages(pool, None, after).await?;
+                let force_fetch = env::var("FORCE_FETCH").map(|v| v == "1").unwrap_or(false);
+                fetch_messages(pool, None, if force_fetch { None } else { after }).await?;
                 let messages = get_messages(pool).await?;
                 feed_messages(
                     &messages
