@@ -53,6 +53,7 @@ pub static BLOCK_MESSAGE_REGEX: Lazy<RegexSet> = Lazy::new(|| {
         r"^(?:https?:)?//(?:\w|[.-])+/\S+\n*$",
         r"^\[[^\[\]]+\]\((?:https?:)?//(?:\w|[.-])+/\S+\)\n*$",
         r"^う+\n*$",
+        r"^%",
     ])
     .unwrap()
 });
