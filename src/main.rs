@@ -116,47 +116,108 @@ static SPECIAL_LINK_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"!\{"type":"\w+","raw":!"([^"]+)","id":"(?:\w|[-])+"\}"#).unwrap());
 
 #[derive(Debug, Clone)]
-enum ContentType {
-    Text(String),
-    Stamp(String),
+enum SplittedText {
+    Unmatched(String),
+    FullMatch(String),
+    HasPrefix(String, String),
+    HasSuffix(String, String),
+    HasPrefixAndSuffix(String, String, String),
 }
-fn message_split_stamp(messages: String) -> Vec<ContentType> {
-    let mut result = Vec::new();
-    let mut messages = SPECIAL_LINK_REGEX.replace_all(&messages, "$1").to_string();
-    loop {
-        let mat = STAMP_REGEX.find(&messages);
-        match mat {
-            Some(mat) => {
-                if mat.start() == 0 {
-                    if mat.end() == messages.len() {
-                        result.push(ContentType::Stamp(messages.clone()));
-                        break;
-                    } else {
-                        let (stamp, rest) = messages.split_at(mat.end());
-                        result.push(ContentType::Stamp(stamp.to_string()));
-                        messages = rest.to_string();
-                    }
-                } else {
-                    let (text, rest) = messages.split_at(mat.start());
-                    result.push(ContentType::Text(text.to_string()));
-                    if mat.end() == messages.len() {
-                        result.push(ContentType::Stamp(rest.to_string()));
-                        break;
-                    } else {
-                        let (stamp, rest) = rest.split_at(mat.end() - mat.start());
-                        result.push(ContentType::Stamp(stamp.to_string()));
-                        messages = rest.to_string();
-                    }
-                }
+fn split_first_regex(text: String, regex: &Regex) -> SplittedText {
+    let mat = regex.find(&text);
+    match mat {
+        Some(mat) => match (mat.start(), mat.end()) {
+            (0, end) if end == text.len() => SplittedText::FullMatch(text),
+            (0, end) => {
+                let (target, suffix) = text.split_at(end);
+                SplittedText::HasPrefix(target.to_string(), suffix.to_string())
             }
-            None => {
-                if !messages.is_empty() {
-                    result.push(ContentType::Text(messages));
-                }
+            (start, end) if end == text.len() => {
+                let (prefix, target) = text.split_at(start);
+                SplittedText::HasSuffix(prefix.to_string(), target.to_string())
+            }
+            (start, end) => {
+                let (prefix, rest) = text.split_at(start);
+                let (target, suffix) = rest.split_at(end - start);
+                SplittedText::HasPrefixAndSuffix(
+                    prefix.to_string(),
+                    target.to_string(),
+                    suffix.to_string(),
+                )
+            }
+        },
+        None => SplittedText::Unmatched(text),
+    }
+}
+#[derive(Debug, Clone)]
+enum SplittedElement {
+    Unmatched(String),
+    Matched(String),
+}
+fn split_all_regex(mut target_text: String, regex: &Regex) -> Vec<SplittedElement> {
+    let mut result = Vec::new();
+    loop {
+        match split_first_regex(target_text, regex) {
+            SplittedText::Unmatched(text) => {
+                result.push(SplittedElement::Unmatched(text));
                 break;
+            }
+            SplittedText::FullMatch(matched) => {
+                result.push(SplittedElement::Matched(matched));
+                break;
+            }
+            SplittedText::HasPrefix(prefix, matched) => {
+                result.push(SplittedElement::Unmatched(prefix));
+                result.push(SplittedElement::Matched(matched));
+                break;
+            }
+            SplittedText::HasSuffix(matched, suffix) => {
+                result.push(SplittedElement::Matched(matched));
+                target_text = suffix;
+                continue;
+            }
+            SplittedText::HasPrefixAndSuffix(prefix, matched, suffix) => {
+                result.push(SplittedElement::Unmatched(prefix));
+                result.push(SplittedElement::Matched(matched));
+                target_text = suffix;
+                continue;
             }
         }
     }
+    result
+}
+
+#[derive(Debug, Clone)]
+enum ContentType {
+    Text(String),
+    Stamp(String),
+    SpecialLink(String),
+}
+/// traQ のメッセージ用に一部特殊な単語を format する
+/// 現在はスタンプと、メンションやチャンネルリンク を format し、1単語としてわけている
+fn traq_message_format(messages: String) -> Vec<ContentType> {
+    #[allow(unused_assignments)]
+    let mut result = Vec::new();
+    result = split_all_regex(messages, &SPECIAL_LINK_REGEX)
+        .into_iter()
+        .map(|elem| match elem {
+            SplittedElement::Unmatched(text) => ContentType::Text(text),
+            SplittedElement::Matched(matched) => ContentType::SpecialLink(matched),
+        })
+        .collect();
+    result = result
+        .into_iter()
+        .flat_map(|content| match content {
+            ContentType::Text(text) => split_all_regex(text, &STAMP_REGEX)
+                .into_iter()
+                .map(|elem| match elem {
+                    SplittedElement::Unmatched(text) => ContentType::Text(text),
+                    SplittedElement::Matched(matched) => ContentType::Stamp(matched),
+                })
+                .collect(),
+            content => vec![content],
+        })
+        .collect();
     result
 }
 
@@ -166,12 +227,13 @@ fn feed_messages(messages: &[String]) {
         if BLOCK_MESSAGE_REGEX.is_match(message) {
             continue;
         }
-        let message_elements = message_split_stamp(message.to_string());
+        let message_elements = traq_message_format(message.to_string());
         let tokens = message_elements
             .iter()
             .flat_map(|e| match e {
                 ContentType::Text(text) => tokenizer.tokenize_str(text).unwrap(),
                 ContentType::Stamp(stamp) => vec![stamp.as_str()],
+                ContentType::SpecialLink(link) => vec![link.as_str()],
             })
             .collect::<Vec<_>>();
 
