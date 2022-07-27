@@ -1,7 +1,7 @@
 use chrono::{DateTime, TimeZone};
 use sqlx::MySqlPool;
 
-use crate::{
+use crate::model::{
     api,
     db::{self, MessageRecord},
 };

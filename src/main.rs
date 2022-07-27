@@ -1,9 +1,8 @@
-mod api;
 mod cron;
-mod db;
 mod events;
 mod handler;
 mod messages;
+mod model;
 mod utils;
 
 use std::{env, sync::Mutex};
@@ -23,9 +22,9 @@ use utils::{split_all_regex, SplittedElement};
 
 use crate::{
     cron::start_scheduling,
-    db::{connect_db, get_markov_cache, update_markov_cache},
     handler::handler_message,
     messages::{fetch_messages, get_latest_message, get_messages},
+    model::db::{connect_db, get_markov_cache, update_markov_cache},
 };
 
 pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Chain::of_order(3)));

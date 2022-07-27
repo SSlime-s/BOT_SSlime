@@ -2,7 +2,7 @@ use log::{debug, error, info};
 use rocket::futures::{channel::mpsc::UnboundedSender, SinkExt};
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::{api, events::Events, generate_message};
+use crate::{events::Events, generate_message, model::api};
 
 pub async fn handler_message(message: Message, tx: &UnboundedSender<Message>) {
     match message {

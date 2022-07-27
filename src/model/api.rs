@@ -2,7 +2,7 @@ use chrono::DateTime;
 use log::debug;
 use serde_json::Value;
 
-use crate::{db::MessageRecord, BOT_ACCESS_TOKEN, BOT_ID, TARGET_USER_ID};
+use crate::{model::db::MessageRecord, BOT_ACCESS_TOKEN, BOT_ID, TARGET_USER_ID};
 
 const BASE_URL: &str = "https://q.trap.jp/api/v3";
 

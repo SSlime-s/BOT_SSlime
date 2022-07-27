@@ -5,7 +5,7 @@ use rand::Rng;
 use sqlx::MySqlPool;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
-use crate::{api, generate_message, update_markov_chain};
+use crate::{generate_message, model::api, update_markov_chain};
 
 pub async fn start_scheduling(
     pool: &'static MySqlPool,
