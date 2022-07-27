@@ -12,7 +12,7 @@ use dotenv::dotenv;
 use lindera::tokenizer::Tokenizer;
 use markov::Chain;
 use once_cell::sync::{Lazy, OnceCell};
-use regex::Regex;
+use regex::{Regex, RegexSet};
 use rocket::futures::{future, StreamExt};
 use sqlx::MySqlPool;
 use tokio_tungstenite::{connect_async, tungstenite::handshake::client::generate_key};
