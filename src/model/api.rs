@@ -1,3 +1,5 @@
+use std::env;
+
 use chrono::DateTime;
 use log::debug;
 use serde_json::Value;
@@ -118,6 +120,10 @@ where
 
 /// 指定のチャンネルにメッセージを送信する
 pub async fn post_message(channel_id: String, message: String) -> anyhow::Result<()> {
+    if env::var("POST_LOCAL").map(|e| e == "1").unwrap_or(false) {
+        debug!("post_message: {}", message);
+        return Ok(());
+    }
     let client = create_client();
 
     let url = format!("{}/channels/{}/messages", BASE_URL, channel_id);
