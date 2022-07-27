@@ -15,11 +15,11 @@ fn split_first_regex(text: String, regex: &Regex) -> SplittedText {
             (0, end) if end == text.len() => SplittedText::FullMatch(text),
             (0, end) => {
                 let (target, suffix) = text.split_at(end);
-                SplittedText::HasPrefix(target.to_string(), suffix.to_string())
+                SplittedText::HasSuffix(target.to_string(), suffix.to_string())
             }
             (start, end) if end == text.len() => {
                 let (prefix, target) = text.split_at(start);
-                SplittedText::HasSuffix(prefix.to_string(), target.to_string())
+                SplittedText::HasPrefix(prefix.to_string(), target.to_string())
             }
             (start, end) => {
                 let (prefix, rest) = text.split_at(start);
