@@ -81,31 +81,37 @@ pub async fn get_messages(offset: usize) -> anyhow::Result<(usize, Vec<Message>)
 }
 
 /// /messages を after と offset に従って叩いて、totalHits と messages の中身のタプルを返す
-pub async fn get_messages_with_time_section<Tz>(
+pub async fn get_messages_with_time_section<Tz, Tz2>(
     offset: usize,
-    after: &chrono::DateTime<Tz>,
+    before: Option<&DateTime<Tz>>,
+    after: Option<&DateTime<Tz2>>,
 ) -> anyhow::Result<(usize, Vec<Message>)>
 where
     Tz: chrono::TimeZone,
     Tz::Offset: std::fmt::Display,
+    Tz2: chrono::TimeZone,
+    Tz2::Offset: std::fmt::Display,
 {
     let client = create_client();
 
     let url = format!("{}/messages", BASE_URL);
-    let res = client
-        .get(&url)
-        .query(&[
-            ("word", ""),
-            ("from", TARGET_USER_ID),
-            ("limit", "100"),
-            ("offset", &offset.to_string()),
-            ("sort", "createdAt"),
-            ("after", &after.to_rfc3339()),
-        ])
-        .send()
-        .await?
-        .text()
-        .await?;
+    let query = [
+        ("word", ""),
+        ("from", TARGET_USER_ID),
+        ("limit", "100"),
+        ("offset", &offset.to_string()),
+        ("sort", "createdAt"),
+    ];
+    let mut builder = client.get(&url).query(&query);
+    if let Some(before) = before {
+        let before_str = before.to_rfc3339();
+        builder = builder.query(&[("before", &before_str)]);
+    }
+    if let Some(after) = after {
+        let after_str = after.to_rfc3339();
+        builder = builder.query(&[("after", &after_str)]);
+    }
+    let res = builder.send().await?.text().await?;
 
     parse_messages_response(res)
 }
