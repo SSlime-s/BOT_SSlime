@@ -27,7 +27,7 @@ use crate::{
     model::db::{connect_db, get_markov_cache, update_markov_cache},
 };
 
-pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Chain::of_order(3)));
+pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Chain::of_order(2)));
 
 /// 収集するユーザーの UUID
 pub const TARGET_USER_ID: &str = "81bbc211-65aa-4a45-8c56-e0b78d25f9e5";
@@ -115,7 +115,7 @@ static STAMP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r":@?(?:\w|[-.])+:").u
 /// !{"type":"user","raw":"@BOT_SSlime","id":"d8ff0b6c-431f-4476-9708-cb9d2e49b0a5"}
 /// !{"type":"channel","raw":"#gps/times/SSlime/bot","id":"11c32e27-5aa5-44f2-bc3b-ef8e94103ccf"}
 static SPECIAL_LINK_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"!\{"type":"\w+","raw":!"([^"]+)","id":"(?:\w|[-])+"\}"#).unwrap());
+    Lazy::new(|| Regex::new(r#"!\{"type":"\w+","raw":"([^"]+)","id":"(?:\w|[-])+"\}"#).unwrap());
 
 #[derive(Debug, Clone)]
 enum ContentType {
@@ -132,7 +132,15 @@ fn traq_message_format(messages: String) -> Vec<ContentType> {
         .into_iter()
         .map(|elem| match elem {
             SplittedElement::Unmatched(text) => ContentType::Text(text),
-            SplittedElement::Matched(matched) => ContentType::SpecialLink(matched),
+            SplittedElement::Matched(matched) => ContentType::SpecialLink(
+                SPECIAL_LINK_REGEX
+                    .captures(&matched)
+                    .unwrap()
+                    .get(1)
+                    .unwrap()
+                    .as_str()
+                    .to_string(),
+            ),
         })
         .collect();
     result = result
