@@ -209,11 +209,10 @@ pub async fn update_markov_chain(pool: &MySqlPool) -> anyhow::Result<()> {
             }
             None => {
                 debug!("no cache found");
-                let after = match get_latest_message(pool).await? {
-                    Some(message) => Some(naive_to_local(message.created_at)),
-                    None => None,
-                };
-                fetch_messages::<Local>(pool, None, after).await?;
+                let after = get_latest_message(pool)
+                    .await?
+                    .map(|m| naive_to_local(m.created_at));
+                fetch_messages(pool, None, after).await?;
                 let messages = get_messages(pool).await?;
                 feed_messages(
                     &messages
