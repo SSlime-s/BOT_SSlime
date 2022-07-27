@@ -4,6 +4,7 @@ mod db;
 mod events;
 mod handler;
 mod messages;
+mod utils;
 
 use std::{env, sync::Mutex};
 
@@ -18,6 +19,7 @@ use sqlx::MySqlPool;
 use tokio_tungstenite::{connect_async, tungstenite::handshake::client::generate_key};
 
 use log::{debug, error, info};
+use utils::{split_all_regex, SplittedElement};
 
 use crate::{
     cron::start_scheduling,
@@ -114,78 +116,6 @@ static STAMP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r":@?(?:\w|[-.])+:").u
 /// !{"type":"channel","raw":"#gps/times/SSlime/bot","id":"11c32e27-5aa5-44f2-bc3b-ef8e94103ccf"}
 static SPECIAL_LINK_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"!\{"type":"\w+","raw":!"([^"]+)","id":"(?:\w|[-])+"\}"#).unwrap());
-
-#[derive(Debug, Clone)]
-enum SplittedText {
-    Unmatched(String),
-    FullMatch(String),
-    HasPrefix(String, String),
-    HasSuffix(String, String),
-    HasPrefixAndSuffix(String, String, String),
-}
-fn split_first_regex(text: String, regex: &Regex) -> SplittedText {
-    let mat = regex.find(&text);
-    match mat {
-        Some(mat) => match (mat.start(), mat.end()) {
-            (0, end) if end == text.len() => SplittedText::FullMatch(text),
-            (0, end) => {
-                let (target, suffix) = text.split_at(end);
-                SplittedText::HasPrefix(target.to_string(), suffix.to_string())
-            }
-            (start, end) if end == text.len() => {
-                let (prefix, target) = text.split_at(start);
-                SplittedText::HasSuffix(prefix.to_string(), target.to_string())
-            }
-            (start, end) => {
-                let (prefix, rest) = text.split_at(start);
-                let (target, suffix) = rest.split_at(end - start);
-                SplittedText::HasPrefixAndSuffix(
-                    prefix.to_string(),
-                    target.to_string(),
-                    suffix.to_string(),
-                )
-            }
-        },
-        None => SplittedText::Unmatched(text),
-    }
-}
-#[derive(Debug, Clone)]
-enum SplittedElement {
-    Unmatched(String),
-    Matched(String),
-}
-fn split_all_regex(mut target_text: String, regex: &Regex) -> Vec<SplittedElement> {
-    let mut result = Vec::new();
-    loop {
-        match split_first_regex(target_text, regex) {
-            SplittedText::Unmatched(text) => {
-                result.push(SplittedElement::Unmatched(text));
-                break;
-            }
-            SplittedText::FullMatch(matched) => {
-                result.push(SplittedElement::Matched(matched));
-                break;
-            }
-            SplittedText::HasPrefix(prefix, matched) => {
-                result.push(SplittedElement::Unmatched(prefix));
-                result.push(SplittedElement::Matched(matched));
-                break;
-            }
-            SplittedText::HasSuffix(matched, suffix) => {
-                result.push(SplittedElement::Matched(matched));
-                target_text = suffix;
-                continue;
-            }
-            SplittedText::HasPrefixAndSuffix(prefix, matched, suffix) => {
-                result.push(SplittedElement::Unmatched(prefix));
-                result.push(SplittedElement::Matched(matched));
-                target_text = suffix;
-                continue;
-            }
-        }
-    }
-    result
-}
 
 #[derive(Debug, Clone)]
 enum ContentType {
