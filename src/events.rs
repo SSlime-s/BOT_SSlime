@@ -98,11 +98,11 @@ mod tests {
                 "message": {
                     "id": "bc9106b3-f9b2-4eca-9ba1-72b39b40954e",
                     "user": {
-                    "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
-                    "name": "takashi_trap",
-                    "displayName": "寺田 健二",
-                    "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
-                    "bot": false
+                        "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
+                        "name": "takashi_trap",
+                        "displayName": "寺田 健二",
+                        "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
+                        "bot": false
                     },
                     "channelId": "9aba50da-f605-4cd0-a428-5e4558cb911e",
                     "text": "!{\"type\": \"user\", \"raw\": \"@takashi_trap\", \"id\": \"dfdff0c9-5de0-46ee-9721-2525e8bb3d45\"} こんにちは",
@@ -129,6 +129,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn test_events_direct_message_created() {
         let event_str = r#"{
             "type": "DIRECT_MESSAGE_CREATED",
@@ -138,11 +139,11 @@ mod tests {
                 "message": {
                     "id": "2d7ff3f5-c313-4f4a-a9bb-0b5f84d2b6f8",
                     "user": {
-                    "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
-                    "name": "takashi_trap",
-                    "displayName": "寺田 健二",
-                    "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
-                    "bot": false
+                        "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
+                        "name": "takashi_trap",
+                        "displayName": "寺田 健二",
+                        "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
+                        "bot": false
                     },
                     "channelId": "c5a5a697-3bad-4540-b2da-93dc88181d34",
                     "text": "!{\"type\": \"user\", \"raw\": \"@takashi_trap\", \"id\": \"dfdff0c9-5de0-46ee-9721-2525e8bb3d45\"} こんにちは",
@@ -169,6 +170,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn test_events_mentioned() {
         let event_str = r#"{
             "type": "MESSAGE_CREATED",
@@ -223,11 +225,11 @@ mod tests {
                     "path": "#a/po",
                     "parentId": "ea452867-553b-4808-a14f-a47ee0009ee6",
                     "creator": {
-                    "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
-                    "name": "takashi_trap",
-                    "displayName": "寺田 健二",
-                    "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
-                    "bot": false
+                        "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
+                        "name": "takashi_trap",
+                        "displayName": "寺田 健二",
+                        "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
+                        "bot": false
                     },
                     "createdAt": "2018-04-25T12:22:02Z",
                     "updatedAt": "2018-04-25T12:22:02Z"
@@ -257,11 +259,11 @@ mod tests {
                     "path": "#a/po",
                     "parentId": "ea452867-553b-4808-a14f-a47ee0009ee6",
                     "creator": {
-                    "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
-                    "name": "takashi_trap",
-                    "displayName": "寺田 健二",
-                    "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
-                    "bot": false
+                        "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
+                        "name": "takashi_trap",
+                        "displayName": "寺田 健二",
+                        "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
+                        "bot": false
                     },
                     "createdAt": "2018-04-25T12:22:02Z",
                     "updatedAt": "2018-04-25T12:22:02Z"
@@ -278,6 +280,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn test_events_from_bot() {
         let event_str = r#"{
             "type": "DIRECT_MESSAGE_CREATED",
@@ -287,11 +290,11 @@ mod tests {
                 "message": {
                     "id": "2d7ff3f5-c313-4f4a-a9bb-0b5f84d2b6f8",
                     "user": {
-                    "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
-                    "name": "takashi_trap",
-                    "displayName": "寺田 健二",
-                    "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
-                    "bot": true
+                        "id": "dfdff0c9-5de0-46ee-9721-2525e8bb3d45",
+                        "name": "takashi_trap",
+                        "displayName": "寺田 健二",
+                        "iconId": "2bc06cda-bdb9-4a68-8000-62f907f36a92",
+                        "bot": true
                     },
                     "channelId": "c5a5a697-3bad-4540-b2da-93dc88181d34",
                     "text": "!{\"type\": \"user\", \"raw\": \"@takashi_trap\", \"id\": \"dfdff0c9-5de0-46ee-9721-2525e8bb3d45\"} こんにちは",
