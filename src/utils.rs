@@ -1,6 +1,6 @@
 use regex::Regex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum SplittedText {
     Unmatched(String),
     FullMatch(String),
@@ -35,7 +35,7 @@ fn split_first_regex(text: String, regex: &Regex) -> SplittedText {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SplittedElement {
     Unmatched(String),
     Matched(String),
@@ -71,4 +71,151 @@ pub fn split_all_regex(mut target_text: String, regex: &Regex) -> Vec<SplittedEl
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ABC_REGEX_BASE: &str = r#"a+b+c+"#;
+
+    #[test]
+    fn test_split_first_unmatched() {
+        let text = "bbbccccc".to_string();
+        let result = split_first_regex(text.clone(), &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(result, SplittedText::Unmatched(text));
+    }
+
+    #[test]
+    fn test_split_first_full_match() {
+        let text = "aaabbbbbcccc".to_string();
+        let result = split_first_regex(text.clone(), &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(result, SplittedText::FullMatch(text));
+    }
+
+    #[test]
+    fn test_split_first_has_prefix() {
+        let text = "xxxxaaabbbbbcccc".to_string();
+        let result = split_first_regex(text, &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(
+            result,
+            SplittedText::HasPrefix("xxxx".to_string(), "aaabbbbbcccc".to_string())
+        );
+    }
+
+    #[test]
+    fn test_split_first_has_suffix() {
+        let text = "aaabbbbbccccxxxx".to_string();
+        let result = split_first_regex(text, &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(
+            result,
+            SplittedText::HasSuffix("aaabbbbbcccc".to_string(), "xxxx".to_string())
+        );
+    }
+
+    #[test]
+    fn test_split_first_has_prefix_and_suffix() {
+        let text = "xxxxaaabbbbbccccxxxx".to_string();
+        let result = split_first_regex(text, &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(
+            result,
+            SplittedText::HasPrefixAndSuffix(
+                "xxxx".to_string(),
+                "aaabbbbbcccc".to_string(),
+                "xxxx".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_split_all_unmatched() {
+        let text = "bbbccccc".to_string();
+        let result = split_all_regex(text.clone(), &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(result, vec![SplittedElement::Unmatched(text)]);
+    }
+
+    #[test]
+    fn test_split_all_full_match() {
+        let text = "aaabbbbbcccc".to_string();
+        let result = split_all_regex(text.clone(), &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(result, vec![SplittedElement::Matched(text)]);
+    }
+
+    #[test]
+    fn test_split_all_has_prefix() {
+        let text = "xxxxaaabbbbbcccc".to_string();
+        let result = split_all_regex(text, &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(
+            result,
+            vec![
+                SplittedElement::Unmatched("xxxx".to_string()),
+                SplittedElement::Matched("aaabbbbbcccc".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_split_all_has_suffix() {
+        let text = "aaabbbbbccccxxxx".to_string();
+        let result = split_all_regex(text, &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(
+            result,
+            vec![
+                SplittedElement::Matched("aaabbbbbcccc".to_string()),
+                SplittedElement::Unmatched("xxxx".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_split_all_long() {
+        let text = "xxabcxxxaabbccxxxxaxbxcxabcx".to_string();
+        let result = split_all_regex(text, &Regex::new(ABC_REGEX_BASE).unwrap());
+        assert_eq!(
+            result,
+            vec![
+                SplittedElement::Unmatched("xx".to_string()),
+                SplittedElement::Matched("abc".to_string()),
+                SplittedElement::Unmatched("xxx".to_string()),
+                SplittedElement::Matched("aabbcc".to_string()),
+                SplittedElement::Unmatched("xxxxaxbxcx".to_string()),
+                SplittedElement::Matched("abc".to_string()),
+                SplittedElement::Unmatched("x".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_split_all_longest_match() {
+        let regex = Regex::new(r#"\{.*\}"#).unwrap();
+        let text = "xx{XXX}yyy{YYY}zzz{ZZZ}www".to_string();
+        let result = split_all_regex(text, &regex);
+        assert_eq!(
+            result,
+            vec![
+                SplittedElement::Unmatched("xx".to_string()),
+                SplittedElement::Matched("{XXX}yyy{YYY}zzz{ZZZ}".to_string()),
+                SplittedElement::Unmatched("www".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_split_all_shortest_match() {
+        let regex = Regex::new(r#"\{.*?\}"#).unwrap();
+        let text = "xx{XXX}yyy{YYY}zzz{ZZZ}www".to_string();
+        let result = split_all_regex(text, &regex);
+        assert_eq!(
+            result,
+            vec![
+                SplittedElement::Unmatched("xx".to_string()),
+                SplittedElement::Matched("{XXX}".to_string()),
+                SplittedElement::Unmatched("yyy".to_string()),
+                SplittedElement::Matched("{YYY}".to_string()),
+                SplittedElement::Unmatched("zzz".to_string()),
+                SplittedElement::Matched("{ZZZ}".to_string()),
+                SplittedElement::Unmatched("www".to_string()),
+            ]
+        );
+    }
 }
