@@ -6,7 +6,6 @@ on:
       - 'main'
 env:
   GITEA_SSH_URL: 'ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git'
-  RUST_VERSION: '1.62.0'
   OUTPUT_DIR: 'target'
 
 jobs:
