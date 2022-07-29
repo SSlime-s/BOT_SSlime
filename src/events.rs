@@ -17,7 +17,10 @@ impl Events {
         let event_json: Value =
             serde_json::from_str(event_str.as_ref()).map_err(|e| e.to_string())?;
         let event_type = event_json["type"].as_str().unwrap();
-        if event_json["body"]["message"]["user"]["bot"].as_bool().unwrap_or(false) {
+        if event_json["body"]["message"]["user"]["bot"]
+            .as_bool()
+            .unwrap_or(false)
+        {
             return Ok(Events::FromBot);
         }
         Ok(match event_type {
