@@ -14,25 +14,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Cache Rust
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+        uses: ./.github/actions/cache_rust
       - name: Build
         run: cargo build
-
-      - name: Cache Build
-        uses: actions/cache@v3
-        with:
-          path: target/
-          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
 
   release-build:
     runs-on: ubuntu-latest
@@ -64,10 +48,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Restore Cache
-        uses: actions/cache@v3
-        with:
-          path: target/
-          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+        uses: ./.github/actions/cache_rust
 
       - name: Cargo Test
         run: cargo test
@@ -79,10 +60,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Restore Cache
-        uses: actions/cache@v3
-        with:
-          path: target/
-          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+        uses: ./.github/actions/cache_rust
+
       - name: Cargo fmt
         run: cargo fmt --all -- --check
 
@@ -93,10 +72,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Restore Cache
-        uses: actions/cache@v3
-        with:
-          path: target/
-          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+        uses: ./.github/actions/cache_rust
+
       - name: Cargo clippy
         run: cargo clippy # -- -D warnings
 
