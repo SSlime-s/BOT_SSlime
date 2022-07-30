@@ -1,4 +1,3 @@
-## gitea に同期する用の actions
 name: main
 on:
   push:
