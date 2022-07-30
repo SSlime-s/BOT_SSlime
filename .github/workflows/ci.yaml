@@ -7,6 +7,10 @@ on:
 env:
   GITEA_SSH_URL: 'ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git'
 
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -76,6 +80,39 @@ jobs:
 
       - name: Cargo clippy
         run: cargo clippy # -- -D warnings
+
+  doc:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    needs:
+      - build
+      - test
+      - fmt
+      - clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Cache
+        uses: ./.github/actions/cache_rust
+
+      - name: Cargo doc
+        run: cargo doc --no-deps
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v1
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: target/doc/
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@main
 
   sync:
     needs:
