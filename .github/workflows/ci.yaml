@@ -9,18 +9,11 @@ env:
   OUTPUT_DIR: 'target'
 
 jobs:
-  setup: # install + build
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: checkout@v3
       - name: Cache Rust
         uses: actions/cache@v3
         with:
@@ -31,42 +24,112 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Build
-        run: cargo build --release
+        run: cargo build
 
       - name: Cache Build
         uses: actions/cache@v3
         with:
-          path: ${{ env.OUTPUT_DIR }}
-          key: build-${{ github.sha }}
+          path: target/
+          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+
+  release-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: checkout@v3
+      - name: Cache Rust
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build
+        run: cargo build --release
+      - name: Cache Build
+        uses: actions/cache@v3
+        with:
+          path: target/
+          key: build-release-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Cache
+        uses: actions/cache@v3
+        with:
+          path: target/
+          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+
+      - name: Cargo Test
+        run: cargo test
+
+  fmt:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Cache
+        uses: actions/cache@v3
+        with:
+          path: target/
+          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+      - name: Cargo fmt
+        run: cargo fmt --all -- --check
+
+  clippy:
+    needs: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Restore Cache
+        uses: actions/cache@v3
+        with:
+          path: target/
+          key: build-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+      - name: Cargo clippy
+        run: cargo clippy # -- -D warnings
 
   sync:
-    needs: setup
-
+    needs:
+      - release-build
+      - test
+      - fmt
+      - clippy
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: restore cache
+      - name: Restore Cache
         uses: actions/cache@v3
         with:
           path: ${{ env.OUTPUT_DIR }}
           key: build-${{ github.sha }}
 
-      - name: Set config
+      - name: Set Config
         run: |
           echo "${{ secrets.GITEA_TOKEN }}" > ~/deploy_key.pem
           chmod 600 ~/deploy_key.pem
           git config --local user.email "github@actions"
           git config --local user.name "github"
-      - name: commit (include build)
+      - name: Commit (include build)
         run: |
           git add ${{ env.OUTPUT_DIR }} -f
           git commit -m "[build] ${{ github.event.head_commit.id }}"
-      - name: Push changes
+      - name: Push Changes
         env:
           GIT_SSH_COMMAND: ssh -i ~/deploy_key.pem -o StrictHostKeyChecking=no -F /dev/null
         run: |
