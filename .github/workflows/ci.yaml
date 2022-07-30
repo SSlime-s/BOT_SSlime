@@ -6,7 +6,6 @@ on:
       - 'main'
 env:
   GITEA_SSH_URL: 'ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git'
-  OUTPUT_DIR: 'target'
 
 jobs:
   build:
@@ -116,8 +115,8 @@ jobs:
       - name: Restore Cache
         uses: actions/cache@v3
         with:
-          path: ${{ env.OUTPUT_DIR }}
-          key: build-${{ github.sha }}
+          path: target/
+          key: build-release-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
 
       - name: Set Config
         run: |
@@ -127,7 +126,7 @@ jobs:
           git config --local user.name "github"
       - name: Commit (include build)
         run: |
-          git add ${{ env.OUTPUT_DIR }} -f
+          git add target/release -f
           git commit -m "[build] ${{ github.event.head_commit.id }}"
       - name: Push Changes
         env:
