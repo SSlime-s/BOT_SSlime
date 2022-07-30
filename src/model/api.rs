@@ -60,28 +60,6 @@ fn parse_messages_response(res: String) -> anyhow::Result<(usize, Vec<Message>)>
     Ok((total_hits, messages))
 }
 
-/// /messages を offset に従って叩いて、totalHits と messages の中身のタプルを返す
-pub async fn get_messages(offset: usize) -> anyhow::Result<(usize, Vec<Message>)> {
-    let client = create_client();
-
-    let url = format!("{BASE_URL}/messages");
-    let res = client
-        .get(&url)
-        .query(&[
-            ("word", ""),
-            ("from", TARGET_USER_ID),
-            ("limit", "100"),
-            ("offset", &offset.to_string()),
-            ("sort", "createdAt"),
-        ])
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    parse_messages_response(res)
-}
-
 /// /messages を after と offset に従って叩いて、totalHits と messages の中身のタプルを返す
 pub async fn get_messages_with_time_section<Tz, Tz2>(
     offset: usize,

@@ -17,17 +17,18 @@ use rocket::futures::{future, StreamExt};
 use sqlx::MySqlPool;
 use tokio_tungstenite::{connect_async, tungstenite::handshake::client::generate_key};
 
-use log::{debug, error, info};
+use log::{debug, info};
 use utils::{split_all_regex, SplittedElement};
 
 use crate::{
     cron::start_scheduling,
     handler::handler_message,
     messages::{fetch_messages, get_latest_message, get_messages},
-    model::db::{connect_db, get_markov_cache, update_markov_cache},
+    model::db::connect_db,
 };
 
-pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Chain::of_order(2)));
+pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> =
+    Lazy::new(|| Mutex::new(Chain::of_order(2)));
 
 /// 収集するユーザーの UUID
 pub const TARGET_USER_ID: &str = "81bbc211-65aa-4a45-8c56-e0b78d25f9e5";
@@ -58,8 +59,6 @@ pub static BLOCK_MESSAGE_REGEX: Lazy<RegexSet> = Lazy::new(|| {
     .unwrap()
 });
 
-pub const SAVE_PATH: &str = "markov.yaml";
-
 pub static POOL: OnceCell<MySqlPool> = OnceCell::new();
 
 #[tokio::main]
@@ -79,10 +78,6 @@ async fn main() -> anyhow::Result<()> {
     info!("loading markov chain cache...");
     update_markov_chain(POOL.get().unwrap()).await?;
     info!("markov chain loaded successfully !");
-
-    info!("saving markov chain cache...");
-    save_chain(POOL.get().unwrap()).await?;
-    info!("markov chain saved successfully !");
 
     let request = request_with_authorization(ws_url, BOT_ACCESS_TOKEN.as_str())?;
 
@@ -201,76 +196,19 @@ fn request_with_authorization(url: &str, token: &str) -> anyhow::Result<http::Re
 }
 
 pub async fn update_markov_chain(pool: &MySqlPool) -> anyhow::Result<()> {
-    match load_chain(pool).await {
-        Ok(res) => match res {
-            Some(last_updated) => {
-                if last_updated < Local::now().naive_local() - chrono::Duration::hours(20) {
-                    debug!("markov chain is too old, updating...");
-                    let messages =
-                        fetch_messages(pool, None, Some(naive_to_local(last_updated))).await?;
-                    feed_messages(
-                        &messages
-                            .iter()
-                            .map(|m| m.content.clone())
-                            .collect::<Vec<String>>(),
-                    );
-                }
-            }
-            None => {
-                debug!("no cache found");
-                let after = get_latest_message(pool)
-                    .await?
-                    .map(|m| naive_to_local(m.created_at));
-                let force_fetch = env::var("FORCE_FETCH").map(|v| v == "1").unwrap_or(false);
-                fetch_messages(pool, None, if force_fetch { None } else { after }).await?;
-                let messages = get_messages(pool).await?;
-                feed_messages(
-                    &messages
-                        .iter()
-                        .map(|m| m.content.clone())
-                        .collect::<Vec<String>>(),
-                );
-            }
-        },
-        Err(e) => {
-            error!("failed to load markov chain: {}", e);
-            return Err(e);
-        }
-    };
+    let after = get_latest_message(pool)
+        .await?
+        .map(|m| naive_to_local(m.created_at));
+    let force_fetch = env::var("FORCE_FETCH").map(|v| v == "1").unwrap_or(false);
+    fetch_messages(pool, None, if force_fetch { None } else { after }).await?;
+    let messages = get_messages(pool).await?;
+    feed_messages(
+        &messages
+            .iter()
+            .map(|m| m.content.clone())
+            .collect::<Vec<String>>(),
+    );
     Ok(())
-}
-
-async fn save_chain(pool: &MySqlPool) -> anyhow::Result<()> {
-    return Ok(());
-    // DB への保存は showcase 上ではサイズの関係でうまく動かなかったから、実際には DB に保存しない
-    {
-        MARKOV_CHAIN.lock().unwrap().save(SAVE_PATH)?;
-    }
-
-    update_markov_cache(pool, "").await?;
-
-    Ok(())
-}
-
-async fn load_chain(pool: &MySqlPool) -> anyhow::Result<Option<NaiveDateTime>> {
-    return Ok(None);
-    let content = get_markov_cache(pool).await?;
-
-    let content = match content {
-        Some(content) => content,
-        None => return Ok(None),
-    };
-
-    match Chain::load(SAVE_PATH) {
-        Ok(chain) => {
-            *MARKOV_CHAIN.lock().unwrap() = chain;
-        }
-        Err(_e) => {
-            return Ok(None);
-        }
-    }
-
-    Ok(Some(content.last_update))
 }
 
 fn naive_to_local(naive: NaiveDateTime) -> DateTime<Local> {

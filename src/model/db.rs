@@ -37,31 +37,6 @@ pub async fn connect_db() -> anyhow::Result<MySqlPool> {
     Ok(pool)
 }
 
-/// markov chain のキャッシュを取得する
-pub async fn get_markov_cache(pool: &MySqlPool) -> anyhow::Result<Option<MarkovCacheRecord>> {
-    let cache: Option<MarkovCacheRecord> = sqlx::query_as("SELECT * FROM markov_cache LIMIT 1;")
-        .fetch_optional(pool)
-        .await?;
-    Ok(cache)
-}
-
-/// markov chain のキャッシュを更新する (過去のものは削除される)
-pub async fn update_markov_cache(pool: &MySqlPool, cache: &str) -> anyhow::Result<()> {
-    let mut tx = pool.begin().await?;
-
-    sqlx::query("DELETE FROM markov_cache;")
-        .execute(&mut tx)
-        .await?;
-
-    sqlx::query("INSERT INTO markov_cache (cache) VALUES (?);")
-        .bind(cache)
-        .execute(&mut tx)
-        .await?;
-
-    tx.commit().await?;
-    Ok(())
-}
-
 /// メッセージを保存する
 pub async fn insert_messages(pool: &MySqlPool, messages: &[MessageRecord]) -> anyhow::Result<()> {
     if messages.is_empty() {
