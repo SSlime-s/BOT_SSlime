@@ -1,16 +1,19 @@
 use std::env;
 
+use dotenv::dotenv;
 use log::{debug, error, info};
 use once_cell::sync::Lazy;
 use rocket::futures::{channel::mpsc::UnboundedSender, SinkExt};
 use tokio_tungstenite::tungstenite::Message;
-use dotenv::dotenv;
 
 use crate::{events::Events, generate_message, model::api};
 
 static OUTPUT_PING: Lazy<bool> = Lazy::new(|| {
     dotenv().ok();
-    env::var("OUTPUT_PING").ok().map(|s| s == "1").unwrap_or(false)
+    env::var("OUTPUT_PING")
+        .ok()
+        .map(|s| s == "1")
+        .unwrap_or(false)
 });
 
 pub async fn handler_message(message: Message, _tx: &UnboundedSender<Message>) {
