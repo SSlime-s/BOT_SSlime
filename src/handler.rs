@@ -1,8 +1,17 @@
+use std::env;
+
 use log::{debug, error, info};
+use once_cell::sync::Lazy;
 use rocket::futures::{channel::mpsc::UnboundedSender, SinkExt};
 use tokio_tungstenite::tungstenite::Message;
+use dotenv::dotenv;
 
 use crate::{events::Events, generate_message, model::api};
+
+static OUTPUT_PING: Lazy<bool> = Lazy::new(|| {
+    dotenv().ok();
+    env::var("OUTPUT_PING").ok().map(|s| s == "1").unwrap_or(false)
+});
 
 pub async fn handler_message(message: Message, _tx: &UnboundedSender<Message>) {
     match message {
@@ -79,6 +88,9 @@ pub async fn handler_message(message: Message, _tx: &UnboundedSender<Message>) {
             }
         }
         Message::Ping(data) => {
+            if *OUTPUT_PING {
+                debug!("Received ping: {:?}", data);
+            }
             debug!("Received ping: {:?}", data);
         }
         _ => error!("Received: {:?} is not supported", message),
