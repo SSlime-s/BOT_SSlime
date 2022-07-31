@@ -4,7 +4,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::{events::Events, generate_message, model::api};
 
-pub async fn handler_message(message: Message, tx: &UnboundedSender<Message>) {
+pub async fn handler_message(message: Message, _tx: &UnboundedSender<Message>) {
     match message {
         Message::Text(text) => {
             info!("Received: {}", text);
@@ -80,8 +80,6 @@ pub async fn handler_message(message: Message, tx: &UnboundedSender<Message>) {
         }
         Message::Ping(data) => {
             debug!("Received ping: {:?}", data);
-            let msg = Message::Pong(data);
-            tx.clone().send(msg).await.unwrap();
         }
         _ => error!("Received: {:?} is not supported", message),
     };
