@@ -1,4 +1,5 @@
 # BOT_SSlime
+[doc](https://sslime-s.github.io/BOT_SSlime/bot_sslime/)
 ## usage
 SSlime っぽいことを `#gps/times/SSlime/bot` に定期投稿する BOT です
 メンションをされたときや、参加しているチャンネルでは投稿に反応して投稿します
