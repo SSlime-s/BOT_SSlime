@@ -14,3 +14,9 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `created_at` DATETIME NOT NULL,
   PRIMARY KEY (id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `frequency` (
+  `channel_id` CHAR(36) NOT NULL,
+  `frequency`  INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (channel_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;

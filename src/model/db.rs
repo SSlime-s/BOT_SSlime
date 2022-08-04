@@ -19,6 +19,12 @@ pub struct MessageRecord {
     pub created_at: NaiveDateTime,
 }
 
+#[derive(Debug, FromRow)]
+pub struct FrequencyRecord {
+    pub channel_id: String,
+    pub frequency: i64,
+}
+
 /// 環境変数を用いて、db に接続する
 pub async fn connect_db() -> anyhow::Result<MySqlPool> {
     dotenv().ok();
@@ -78,4 +84,30 @@ pub async fn get_latest_message(pool: &MySqlPool) -> anyhow::Result<Option<Messa
             .fetch_optional(pool)
             .await?;
     Ok(message)
+}
+
+#[allow(dead_code)]
+pub async fn get_frequencies(pool: &MySqlPool) -> anyhow::Result<Vec<FrequencyRecord>> {
+    let frequencies: Vec<FrequencyRecord> = sqlx::query_as("SELECT * FROM `frequency`;")
+        .fetch_all(pool)
+        .await?;
+    Ok(frequencies)
+}
+
+pub async fn get_frequency(pool: &MySqlPool, channel_id: String) -> anyhow::Result<Option<FrequencyRecord>> {
+    let frequency: Option<FrequencyRecord> = sqlx::query_as("SELECT * FROM `frequency` WHERE `channel_id` = ?;")
+        .bind(&channel_id)
+        .fetch_optional(pool)
+        .await?;
+    Ok(frequency)
+}
+
+pub async fn update_frequency(pool: &MySqlPool, channel_id: String, frequency: i64) -> anyhow::Result<()> {
+    sqlx::query("INSERT INTO `frequency` (`channel_id`, `frequency`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `frequency` = ?;")
+        .bind(&channel_id)
+        .bind(&frequency)
+        .bind(&frequency)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
