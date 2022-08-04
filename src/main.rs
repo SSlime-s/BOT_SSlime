@@ -5,7 +5,7 @@ mod messages;
 mod model;
 mod utils;
 
-use std::{env, sync::Mutex, collections::HashMap};
+use std::{collections::HashMap, env, sync::Mutex};
 
 use chrono::{DateTime, Local, NaiveDateTime};
 use dotenv::dotenv;
@@ -29,7 +29,8 @@ use crate::{
 
 pub static MARKOV_CHAIN: Lazy<Mutex<Chain<String>>> = Lazy::new(|| Mutex::new(Chain::of_order(2)));
 
-pub static FREQUENCIES_CACHE: Lazy<Mutex<HashMap<String, i64>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+pub static FREQUENCIES_CACHE: Lazy<Mutex<HashMap<String, i64>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// 収集するユーザーの UUID
 pub const TARGET_USER_ID: &str = "81bbc211-65aa-4a45-8c56-e0b78d25f9e5";

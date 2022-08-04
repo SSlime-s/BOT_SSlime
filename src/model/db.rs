@@ -94,15 +94,23 @@ pub async fn get_frequencies(pool: &MySqlPool) -> anyhow::Result<Vec<FrequencyRe
     Ok(frequencies)
 }
 
-pub async fn get_frequency(pool: &MySqlPool, channel_id: String) -> anyhow::Result<Option<FrequencyRecord>> {
-    let frequency: Option<FrequencyRecord> = sqlx::query_as("SELECT * FROM `frequency` WHERE `channel_id` = ?;")
-        .bind(&channel_id)
-        .fetch_optional(pool)
-        .await?;
+pub async fn get_frequency(
+    pool: &MySqlPool,
+    channel_id: String,
+) -> anyhow::Result<Option<FrequencyRecord>> {
+    let frequency: Option<FrequencyRecord> =
+        sqlx::query_as("SELECT * FROM `frequency` WHERE `channel_id` = ?;")
+            .bind(&channel_id)
+            .fetch_optional(pool)
+            .await?;
     Ok(frequency)
 }
 
-pub async fn update_frequency(pool: &MySqlPool, channel_id: String, frequency: i64) -> anyhow::Result<()> {
+pub async fn update_frequency(
+    pool: &MySqlPool,
+    channel_id: String,
+    frequency: i64,
+) -> anyhow::Result<()> {
     sqlx::query("INSERT INTO `frequency` (`channel_id`, `frequency`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `frequency` = ?;")
         .bind(&channel_id)
         .bind(&frequency)
