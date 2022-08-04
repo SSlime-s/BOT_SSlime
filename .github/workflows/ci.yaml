@@ -7,7 +7,7 @@ env:
   GITEA_SSH_URL: 'ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git'
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
