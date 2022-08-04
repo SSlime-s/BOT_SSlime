@@ -30,7 +30,7 @@ static OUTPUT_PING: Lazy<bool> = Lazy::new(|| {
 });
 
 static FREQ_COMMAND: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^@(?:\w|[_-])+\s+(?:\\|/)freq\s+(\S+)\s+$").unwrap());
+    Lazy::new(|| Regex::new(r"^\s*@(?:\w|[_-])+\s+(?:\\|/)freq\s+(\S+)\s*$").unwrap());
 pub async fn handler_message(message: Message, _tx: &UnboundedSender<Message>) {
     match message {
         Message::Text(text) => {
