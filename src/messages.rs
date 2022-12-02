@@ -124,5 +124,9 @@ where
         messages.extend(older_messages);
     }
 
+    if let Some(limit) = limit {
+        messages.truncate(limit);
+    }
+
     Ok(messages)
 }
