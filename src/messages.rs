@@ -19,6 +19,15 @@ pub async fn get_latest_message(pool: &MySqlPool) -> anyhow::Result<Option<Messa
     Ok(message)
 }
 
+/// after から before の期間のメッセージを API から取得し、DB に保存する
+///
+/// (ただし、traQ の検索の仕様上、件数は 10000 件を超えると 10000 件と表示されるため、10000 件までしか取得しない)
+///
+/// # Arguments
+/// * `pool` - DB のコネクションプール
+/// * `before` - 取得するメッセージの期間の終わり
+/// * `after` - 取得するメッセージの期間の始まり
+/// * `interval_ms` - メッセージを取得する間隔 (ミリ秒)
 async fn fetch_messages_as_match_as_possible_at_once<TzB, TzA>(
     pool: &MySqlPool,
     before: Option<&DateTime<TzB>>,
@@ -77,6 +86,8 @@ where
     Ok(messages.iter().map(MessageRecord::from).collect::<Vec<_>>())
 }
 
+/// ある時点より新しいメッセージすべてを最大 limit 件取得し、DB に保存する
+/// (ただし、DB に保存される件数は limit 件を上回る可能性がある)
 pub async fn fetch_messages<Tz>(
     pool: &MySqlPool,
     limit: Option<usize>,

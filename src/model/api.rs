@@ -60,7 +60,7 @@ fn parse_messages_response(res: String) -> anyhow::Result<(usize, Vec<Message>)>
     Ok((total_hits, messages))
 }
 
-/// /messages を after と offset に従って叩いて、totalHits と messages の中身のタプルを返す
+/// messages を after と offset に従って叩いて、totalHits と messages の中身のタプルを返す
 pub async fn get_messages_with_time_section<Tz, Tz2>(
     offset: usize,
     before: Option<&DateTime<Tz>>,
