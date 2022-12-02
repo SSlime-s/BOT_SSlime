@@ -65,9 +65,9 @@ pub static POOL: OnceCell<MySqlPool> = OnceCell::new();
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    info!("Starting...");
     dotenv().ok();
     env_logger::init();
+    info!("Starting...");
 
     let pool = connect_db().await?;
     POOL.set(pool).unwrap();
