@@ -114,12 +114,10 @@ where
         )
         .await?;
 
-        let oldest_message_pos = older_messages
-            .iter()
-            .position(|m| m.id == *oldest_message_id);
-        if let Some(pos) = oldest_message_pos {
-            older_messages = older_messages.split_off(pos);
-        }
+        // 現状保持しているメッセージの中で最も古いメッセージより新しいメッセージのみに絞る
+        older_messages
+            .retain(|m| m.id != *oldest_message_id && m.created_at >= oldest_message_created_at);
+
         if older_messages.is_empty() {
             break;
         }
