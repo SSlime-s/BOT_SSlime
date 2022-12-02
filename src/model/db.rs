@@ -63,7 +63,7 @@ pub async fn insert_messages(pool: &MySqlPool, messages: &[MessageRecord]) -> an
         query = query.bind(&message.id);
         query = query.bind(&message.channel_id);
         query = query.bind(&message.content);
-        query = query.bind(&message.created_at);
+        query = query.bind(message.created_at);
     }
     query.execute(pool).await?;
 
@@ -113,8 +113,8 @@ pub async fn update_frequency(
 ) -> anyhow::Result<()> {
     sqlx::query("INSERT INTO `frequency` (`channel_id`, `frequency`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `frequency` = ?;")
         .bind(&channel_id)
-        .bind(&frequency)
-        .bind(&frequency)
+        .bind(frequency)
+        .bind(frequency)
         .execute(pool)
         .await?;
     Ok(())

@@ -5,7 +5,7 @@ use log::{debug, error, info};
 use once_cell::sync::Lazy;
 use rand::Rng;
 use regex::Regex;
-use rocket::futures::{channel::mpsc::UnboundedSender, SinkExt};
+use rocket::futures::{channel::mpsc::UnboundedSender};
 use sqlx::MySqlPool;
 use tokio_tungstenite::tungstenite::Message;
 
