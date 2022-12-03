@@ -4,7 +4,12 @@ mod messages;
 mod model;
 mod utils;
 
-use std::{collections::HashMap, env, sync::Mutex};
+use std::{
+    collections::HashMap,
+    env,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use chrono::{DateTime, Local, NaiveDateTime};
 use dotenv::dotenv;
@@ -16,6 +21,7 @@ use rocket::futures::future;
 use sqlx::MySqlPool;
 
 use log::{debug, info};
+use traq_ws_bot::utils::RateLimiter;
 use utils::{split_all_regex, SplittedElement};
 
 use crate::{
@@ -64,6 +70,8 @@ pub static BLOCK_MESSAGE_REGEX: Lazy<RegexSet> = Lazy::new(|| {
 
 pub static POOL: OnceCell<MySqlPool> = OnceCell::new();
 
+pub type Resource = Arc<Arc<RateLimiter>>;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
@@ -74,20 +82,22 @@ async fn main() -> anyhow::Result<()> {
     POOL.set(pool).unwrap();
 
     debug!("db connected");
+    let rate_limiter = Arc::new(RateLimiter::new(5, Duration::from_secs(60)));
 
     let bot = traq_ws_bot::builder(&*BOT_ACCESS_TOKEN)
+        .insert_resource(rate_limiter.clone())
         .on_joined(join_handler)
         .on_left(left_handler)
         .on_direct_message_created(direct_message_handler)
-        .on_message_created(non_mentioned_message_handler)
-        .on_message_created(mentioned_handler)
+        .on_message_created_with_resource(non_mentioned_message_handler)
+        .on_message_created_with_resource(mentioned_handler)
         .build();
 
     info!("loading markov chain cache...");
     update_markov_chain(POOL.get().unwrap()).await?;
     info!("markov chain loaded successfully !");
 
-    let cron_loop = start_scheduling(POOL.get().unwrap(), CRON_CHANNEL_ID).await?;
+    let cron_loop = start_scheduling(POOL.get().unwrap(), CRON_CHANNEL_ID, rate_limiter).await?;
 
     let _ = future::join(bot.start(), cron_loop).await;
 

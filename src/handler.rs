@@ -11,13 +11,18 @@ use crate::{
         api,
         db::{get_frequency, update_frequency},
     },
-    BOT_USER_ID, FREQUENCIES_CACHE, POOL,
+    Resource, BOT_USER_ID, FREQUENCIES_CACHE, POOL,
 };
 
 const DEFAULT_FREQ: i64 = 20;
 
 pub async fn join_handler(payload: payload::Joined) {
-    let res = api::post_message(payload.channel.id, "参加しました :blob_pyon:".to_string()).await;
+    let res = api::post_message(
+        payload.channel.id,
+        "参加しました :blob_pyon:".to_string(),
+        None,
+    )
+    .await;
     if let Err(e) = res {
         error!("Failed to post message: {}", e);
     }
@@ -27,6 +32,7 @@ pub async fn left_handler(payload: payload::Left) {
     let res = api::post_message(
         payload.channel.id,
         "退出しました :blob_speedy_roll_inverse:".to_string(),
+        None,
     )
     .await;
     if let Err(e) = res {
@@ -40,13 +46,13 @@ pub async fn direct_message_handler(payload: payload::DirectMessageCreated) {
     }
 
     let res_message = generate_message();
-    let res = api::post_message(payload.message.channel_id, res_message).await;
+    let res = api::post_message(payload.message.channel_id, res_message, None).await;
     if let Err(e) = res {
         error!("Failed to post message: {}", e);
     }
 }
 
-pub async fn non_mentioned_message_handler(payload: payload::MessageCreated) {
+pub async fn non_mentioned_message_handler(payload: payload::MessageCreated, resource: Resource) {
     if payload.message.user.bot {
         return;
     }
@@ -63,6 +69,7 @@ pub async fn non_mentioned_message_handler(payload: payload::MessageCreated) {
         let res = api::post_message(
             channel_id,
             "頻度の取得に失敗しました :Hyperblob:".to_string(),
+            None
         ).await;
         if let Err(e) = res {
             error!("Failed to post message: {}", e);
@@ -75,13 +82,13 @@ pub async fn non_mentioned_message_handler(payload: payload::MessageCreated) {
     }
 
     let res_message = generate_message();
-    let res = api::post_message(channel_id, res_message).await;
+    let res = api::post_message(channel_id, res_message, Some(&resource)).await;
     if let Err(e) = res {
         error!("Failed to post message: {}", e);
     }
 }
 
-pub async fn mentioned_handler(payload: payload::MessageCreated) {
+pub async fn mentioned_handler(payload: payload::MessageCreated, resource: Resource) {
     if payload.message.user.bot {
         return;
     }
@@ -117,6 +124,7 @@ pub async fn mentioned_handler(payload: payload::MessageCreated) {
         let res = api::post_message(
             payload.message.channel_id,
             "頻度の取得に失敗しました :Hyperblob:".to_string(),
+            None
         ).await;
         if let Err(e) = res {
             error!("Failed to post message: {}", e);
@@ -128,7 +136,7 @@ pub async fn mentioned_handler(payload: payload::MessageCreated) {
         return;
     }
     let res_message = generate_message();
-    let res = api::post_message(payload.message.channel_id, res_message).await;
+    let res = api::post_message(payload.message.channel_id, res_message, Some(&resource)).await;
     if let Err(e) = res {
         error!("Failed to post message: {}", e);
     }
@@ -208,7 +216,7 @@ pub async fn handle_try_change_freq(message: &traq_ws_bot::events::common::Messa
             .unwrap()
             .insert(message.channel_id.clone(), freq);
     }
-    let res = api::post_message(message.channel_id.clone(), res_msg).await;
+    let res = api::post_message(message.channel_id.clone(), res_msg, None).await;
     if let Err(e) = res {
         error!("Failed to post message: {}", e);
     }

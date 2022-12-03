@@ -3,6 +3,7 @@ use std::env;
 use chrono::DateTime;
 use log::debug;
 use serde_json::Value;
+use traq_ws_bot::utils::RateLimiter;
 
 use crate::{model::db::MessageRecord, BOT_ACCESS_TOKEN, BOT_ID, TARGET_USER_ID};
 
@@ -97,10 +98,20 @@ where
 }
 
 /// 指定のチャンネルにメッセージを送信する
-pub async fn post_message(channel_id: String, message: String) -> anyhow::Result<()> {
+pub async fn post_message(
+    channel_id: String,
+    message: String,
+    rate_limiter: Option<&RateLimiter>,
+) -> anyhow::Result<()> {
     if env::var("POST_LOCAL").map(|e| e == "1").unwrap_or(false) {
         debug!("post_message: {}", message);
         return Ok(());
+    }
+    if let Some(rate_limiter) = rate_limiter {
+        if !rate_limiter.try_acquire() {
+            log::info!("rate limit exceeded with {} on {}", message, channel_id);
+            return Ok(());
+        }
     }
     let client = create_client();
 
