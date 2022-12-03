@@ -1,5 +1,4 @@
 mod cron;
-mod events;
 mod handler;
 mod messages;
 mod model;
@@ -13,16 +12,18 @@ use lindera::tokenizer::Tokenizer;
 use markov::Chain;
 use once_cell::sync::{Lazy, OnceCell};
 use regex::{Regex, RegexSet};
-use rocket::futures::{future, StreamExt};
+use rocket::futures::future;
 use sqlx::MySqlPool;
-use tokio_tungstenite::{connect_async, tungstenite::handshake::client::generate_key};
 
 use log::{debug, info};
 use utils::{split_all_regex, SplittedElement};
 
 use crate::{
     cron::start_scheduling,
-    handler::handler_message,
+    handler::{
+        direct_message_handler, join_handler, left_handler, mentioned_handler,
+        non_mentioned_message_handler,
+    },
     messages::{fetch_messages, get_latest_message, get_messages},
     model::db::connect_db,
 };
@@ -74,34 +75,21 @@ async fn main() -> anyhow::Result<()> {
 
     debug!("db connected");
 
-    let ws_url = "wss://q.trap.jp/api/v3/bots/ws";
-    // let ws_url = "ws://localhost:3000";
+    let bot = traq_ws_bot::builder(&*BOT_ACCESS_TOKEN)
+        .on_joined(join_handler)
+        .on_left(left_handler)
+        .on_direct_message_created(direct_message_handler)
+        .on_message_created(non_mentioned_message_handler)
+        .on_message_created(mentioned_handler)
+        .build();
 
     info!("loading markov chain cache...");
     update_markov_chain(POOL.get().unwrap()).await?;
     info!("markov chain loaded successfully !");
 
-    let request = request_with_authorization(ws_url, BOT_ACCESS_TOKEN.as_str())?;
-
-    info!("connecting to {}...", ws_url);
-    let (ws_stream, _) = connect_async(request).await.unwrap();
-    info!("Connected to {}", ws_url);
-
-    let (tx, rx) = rocket::futures::channel::mpsc::unbounded();
-
-    let (write, read) = ws_stream.split();
-
-    let write_loop = rx.map(Ok).forward(write);
-
-    let read_loop = {
-        read.for_each(|message| async {
-            handler_message(message.unwrap(), &tx).await;
-        })
-    };
-
     let cron_loop = start_scheduling(POOL.get().unwrap(), CRON_CHANNEL_ID).await?;
 
-    let _ = future::join3(write_loop, read_loop, cron_loop).await;
+    let _ = future::join(bot.start(), cron_loop).await;
 
     Ok(())
 }
@@ -109,8 +97,10 @@ async fn main() -> anyhow::Result<()> {
 static STAMP_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r":@?(?:\w|[-.])+:").unwrap());
 
 /// format
-/// !{"type":"user","raw":"@BOT_SSlime","id":"d8ff0b6c-431f-4476-9708-cb9d2e49b0a5"}
-/// !{"type":"channel","raw":"#gps/times/SSlime/bot","id":"11c32e27-5aa5-44f2-bc3b-ef8e94103ccf"}
+///
+/// `!{"type":"user","raw":"@BOT_SSlime","id":"d8ff0b6c-431f-4476-9708-cb9d2e49b0a5"}`
+///
+/// `!{"type":"channel","raw":"#gps/times/SSlime/bot","id":"11c32e27-5aa5-44f2-bc3b-ef8e94103ccf"}`
 static SPECIAL_LINK_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"!\{"type":"\w+","raw":"([^"]+)","id":"(?:\w|[-])+"\}"#).unwrap());
 
@@ -179,22 +169,6 @@ fn feed_messages(messages: &[String]) {
 
 fn generate_message() -> String {
     MARKOV_CHAIN.lock().unwrap().generate().join("")
-}
-
-fn request_with_authorization(url: &str, token: &str) -> anyhow::Result<http::Request<()>> {
-    let url = url::Url::parse(url)?;
-    let host = url.host_str().unwrap();
-    let req = http::Request::builder()
-        .method("GET")
-        .header("Host", host)
-        .header("Connection", "Upgrade")
-        .header("Upgrade", "websocket")
-        .header("Sec-Websocket-Version", "13")
-        .header("Sec-WebSocket-Key", generate_key())
-        .uri(url.to_string())
-        .header("Authorization", format!("Bearer {}", token))
-        .body(())?;
-    Ok(req)
 }
 
 pub async fn update_markov_chain(pool: &MySqlPool) -> anyhow::Result<()> {
