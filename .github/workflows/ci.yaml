@@ -2,9 +2,9 @@ name: main
 on:
   push:
     branches:
-      - 'main'
+      - "main"
 env:
-  GITEA_SSH_URL: 'ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git'
+  GITEA_SSH_URL: "ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
