@@ -5,6 +5,7 @@ on:
       - "main"
 env:
   GITEA_SSH_URL: "ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git"
+  BIN_NAME: "bot-sslime"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Add Target
+        run: rustup target add x86_64-unknown-linux-musl
       - name: Cache Rust
         uses: actions/cache@v3
         with:
@@ -35,14 +38,14 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-release-musl-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --target x86_64-unknown-linux-musl
       - name: Cache Build
         uses: actions/cache@v3
         with:
-          path: target/
-          key: build-release-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+          path: target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }}
+          key: build-release-musl-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
 
   test:
     needs: build
@@ -128,9 +131,10 @@ jobs:
       - name: Restore Cache
         uses: actions/cache@v3
         with:
-          path: target/
-          key: build-release-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
-
+          path: target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }}
+          key: build-release-musl-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
+      - name: Add To LFS
+        run: git lfs track "./target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }}"
       - name: Set Config
         run: |
           echo "${{ secrets.GITEA_TOKEN }}" > ~/deploy_key.pem
@@ -139,7 +143,8 @@ jobs:
           git config --local user.name "github"
       - name: Commit (include build)
         run: |
-          git add target/release -f
+          git add ./target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }}
+          git add .gitattributes
           git commit -m "[build] ${{ github.event.head_commit.id }}"
       - name: Push Changes
         env:
