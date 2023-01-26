@@ -1,5 +1,13 @@
 type: "runtime"
 
+startup: |-
+  wget https://github.com/git-lfs/git-lfs/releases/download/v3.3.0/git-lfs-linux-amd64-v3.3.0.tar.gz
+  tar -xf git-lfs-linux-amd64-v3.3.0.tar.gz
+  ./git-lfs-3.3.0/install.sh
+  git lfs install
+  git pull "https://SSlime:${{ env.GIT_ACCESS_TOKEN }}@git pull https://SSlime:1cd02edc5fe5ce349c0effa447d63792d1e56047@git.trap.jp/SSlime/BOT_SSlime.git" master
+  git lfs pull
+
 entrypoint: "./target/x86_64-unknown-linux-musl/release/bot-sslime"
 
 http_proxy: 8080
