@@ -117,24 +117,6 @@ pub async fn mentioned_handler(payload: payload::MessageCreated, resource: Resou
         return;
     }
 
-    let Some(freq) = get_frequency_with_cache(POOL.get().unwrap(), payload.message.channel_id.clone())
-        .await
-    else {
-        error!("Failed to get frequency");
-        let res = api::post_message(
-            payload.message.channel_id,
-            "頻度の取得に失敗しました :Hyperblob:".to_string(),
-            None
-        ).await;
-        if let Err(e) = res {
-            error!("Failed to post message: {}", e);
-        }
-        return;
-    };
-
-    if freq < rand::thread_rng().gen_range(1..=100) {
-        return;
-    }
     let res_message = generate_message();
     let res = api::post_message(payload.message.channel_id, res_message, Some(&resource)).await;
     if let Err(e) = res {
