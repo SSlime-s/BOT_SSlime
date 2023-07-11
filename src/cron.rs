@@ -20,14 +20,15 @@ pub async fn start_scheduling(
     let cron_schedule = if many_msg {
         "1/4 * * * * *"
     } else {
-        "0 0,20,40 0-15,22-23 * * *"
+        // "0 0,20,40 0-15,22-23 * * *"
+        "0 0 0-15,22-23 * * *"
     };
 
-    // 日本時間で 0 0,20,40 0,7-23 * * * (cron は UTC)
+    // 日本時間で 0 0 0,7-23 * * * (cron は UTC)
     let post_job = Job::new_async(cron_schedule, move |_uuid, _lock| {
         let rate_limiter = rate_limiter.clone();
         Box::pin(async move {
-            let next_span = rand::thread_rng().gen_range(1..20);
+            let next_span = rand::thread_rng().gen_range(1..60);
             debug!("scheduled at {} minutes later", next_span);
             if !many_msg {
                 thread::sleep(Duration::from_secs(next_span * 60));
