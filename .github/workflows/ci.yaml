@@ -3,13 +3,18 @@ on:
   push:
     branches:
       - "main"
+    tags:
+      - "v*.*.*"
+
 env:
-  GITEA_SSH_URL: "ssh://git@git.trap.jp:2200/SSlime/BOT_SSlime.git"
   BIN_NAME: "bot-sslime"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -23,6 +28,7 @@ jobs:
         run: cargo build
 
   release-build:
+    if: startsWith(github.ref, 'refs/tags')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -86,6 +92,7 @@ jobs:
         run: cargo clippy # -- -D warnings
 
   doc:
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -118,7 +125,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@main
 
-  sync:
+  create-release:
+    if: startsWith(github.ref, 'refs/tags')
     needs:
       - release-build
       - test
@@ -129,28 +137,35 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
       - name: Restore Cache
         uses: actions/cache@v3
         with:
           path: target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }}
           key: build-release-musl-${{ hashFiles('src/**/*.rs', 'Cargo.lock', 'Cargo.toml') }}
-      - name: Add To LFS
-        run: git lfs track "./target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }}"
-      - name: Set Config
+      - name: Create Release
+        id: create-release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ${{ github.event.head_commit.message }}
+      - name: Checkout for Release
+        uses: actions/checkout@v3
+        with:
+          ref: ns
+      - name: Commit Release Url
         run: |
-          echo "${{ secrets.GITEA_TOKEN }}" > ~/deploy_key.pem
-          chmod 600 ~/deploy_key.pem
-          git config --local user.email "github@actions"
-          git config --local user.name "github"
-      - name: Commit (include build)
-        run: |
-          git add ./target/x86_64-unknown-linux-musl/release/${{ env.BIN_NAME }} -f
-          git add .gitattributes
-          git commit -m "[build] ${{ github.event.head_commit.id }}"
+          git reset --hard
+          echo ${{ fromJSON(steps.create-release.outputs.assets)[0].browser_download_url }} > release-url
+          git add release-url
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git commit -m "release: ${{ github.ref_name }}"
       - name: Push Changes
         env:
-          GIT_SSH_COMMAND: ssh -i ~/deploy_key.pem -o StrictHostKeyChecking=no -F /dev/null
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git fetch --unshallow origin
-          git push -f ${{ env.GITEA_SSH_URL }} main:master
+          git push -f origin ns:ns
