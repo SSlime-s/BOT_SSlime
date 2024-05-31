@@ -62,15 +62,14 @@ pub async fn non_mentioned_message_handler(payload: payload::MessageCreated, res
     }
 
     let channel_id = payload.message.channel_id;
-    let Some(freq) =
-        get_frequency_with_cache(POOL.get().unwrap(), channel_id.clone()).await
-    else {
+    let Some(freq) = get_frequency_with_cache(POOL.get().unwrap(), channel_id.clone()).await else {
         error!("Failed to get frequency");
         let res = api::post_message(
             channel_id,
             "頻度の取得に失敗しました :Hyperblob:".to_string(),
-            None
-        ).await;
+            None,
+        )
+        .await;
         if let Err(e) = res {
             error!("Failed to post message: {}", e);
         }
