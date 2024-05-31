@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Cache Rust
         uses: ./.github/actions/cache_rust
       - name: Build
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Add Target
         run: rustup target add x86_64-unknown-linux-musl
       - name: Install musl-tools
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Restore Cache
         uses: ./.github/actions/cache_rust
 
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Restore Cache
         uses: ./.github/actions/cache_rust
 
@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Restore Cache
         uses: ./.github/actions/cache_rust
 
@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Restore Cache
         uses: ./.github/actions/cache_rust
 
@@ -136,7 +136,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Restore Cache
         uses: actions/cache@v3
         with:
@@ -152,7 +152,7 @@ jobs:
           body: |
             ${{ github.event.head_commit.message }}
       - name: Checkout for Release
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ns
       - name: Commit Release Url
